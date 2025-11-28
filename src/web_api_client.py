@@ -2,43 +2,6 @@ from dotenv import load_dotenv
 from ibind import IbkrClient
 from ibind.client.ibkr_definitions import snapshot_by_id
 import time
-# from typing import Optional, Union, List, Dict
-
-
-WATCHLIST_SYMBOLS = [
-    "VVIX",
-    "VIX",
-    "VXM", 
-    "MBT", 
-    "MES", 
-    "MCL", 
-    "MGC", 
-    "USD.JPY", 
-    "SPX", 
-    "SPY", 
-    "RSP", 
-    "DIA", 
-    "QQQ", 
-    "IWM", 
-    "HSI", 
-    "FXI", 
-    "XINA50", 
-    "N225", 
-    "XAGUSD", 
-    "DX", 
-    "FVX", 
-    "TNX", 
-    "TYX", 
-    "VOLI", 
-    "SDEX", 
-    "TDEX", 
-    "VIX1D", 
-    "VIX9D", 
-    "VIX3M", 
-    "VIX6M", 
-    "VIX1Y"
-]
-FIELDS = ['55','7051','7635','31','70','71','7295','7741', '7293','7294', '7681', '7724', '7679', '7678','7283', '7087']
 
 load_dotenv()
 
@@ -144,6 +107,9 @@ def iterate_to_get_data(conids, fields, max_attempts=10):
     
     print(f"⚠️ Failed to retrieve market data after {max_attempts} attempts")
     return None
+
+
+# Public market data retrieval functions
 
 
 
