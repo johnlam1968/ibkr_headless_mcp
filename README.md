@@ -77,4 +77,3 @@ src/
 - Customize `NARRATIVE_INSTRUCTIONS`.
 - Extend tools in `mcp_server.py`.
 
-License: MIT
