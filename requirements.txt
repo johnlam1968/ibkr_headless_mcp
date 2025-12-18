@@ -1,0 +1,7 @@
+fastmcp
+ibind
+langchain
+langchain-core
+langchain-deepseek
+langchain-openai
+python-dotenv
