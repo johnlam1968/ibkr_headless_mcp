@@ -38,17 +38,19 @@ server = FastMCP("market-analysis-server")
 async def get_market_snapshot_ibkr(symbols: List[str]) -> str:
     """
     Get real-time market data snapshot for multiple symbols.
+    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
     
     Args:
         symbols: List of ticker symbols (e.g., ['AAPL', 'MSFT', 'GOOGL'])
     
     Returns:
-        JSON string with market data including last price, bid, ask for each symbol.
+        JSON string with market data including last price, bid, ask for each conid.
     """
     try:
+        # Always resolve symbols to conids - IBKR's true unique identifiers
         conids = get_conids(symbols)
         if not conids:
-            return json.dumps({"error": "Failed to resolve any symbols", "symbols": symbols})
+            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
         
         fields = ['31', '292', '293']  # last_price, ask, bid
         market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=10)
@@ -58,7 +60,8 @@ async def get_market_snapshot_ibkr(symbols: List[str]) -> str:
         
         result = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols": symbols,
+            "symbols_requested": symbols,
+            "conids_resolved": conids,
             "data": market_data
         }
         return json.dumps(result, indent=2)
@@ -170,6 +173,7 @@ async def get_portfolio_positions_ibkr(account_id: Optional[str] = None) -> str:
 async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: bool = True) -> str:
     """
     Get enhanced market data with bid/ask spreads and additional fields.
+    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
     
     Args:
         symbols: List of ticker symbols
@@ -179,9 +183,10 @@ async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: boo
         JSON string with detailed market data snapshot.
     """
     try:
+        # Always resolve symbols to conids - IBKR's true unique identifiers
         conids = get_conids(symbols)
         if not conids:
-            return json.dumps({"error": "Failed to resolve symbols", "symbols": symbols})
+            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
         
         if include_bid_ask:
             fields = ['31', '292', '293', '10', '11']  # price, ask, bid, hist vol, impl vol
@@ -191,7 +196,7 @@ async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: boo
         market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=10)
         
         if not market_data:
-            return json.dumps({"error": "Failed to retrieve market data"})
+            return json.dumps({"error": "Failed to retrieve market data", "conids": conids})
         
         formatted_data = {}
         for conid, data in market_data.items():
@@ -203,7 +208,8 @@ async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: boo
         
         response = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols": symbols,
+            "symbols_requested": symbols,
+            "conids_resolved": conids,
             "data": formatted_data,
             "fields_included": [MARKET_DATA_FIELDS.get(f, f) for f in fields]
         }
@@ -217,6 +223,7 @@ async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: boo
 async def watch_symbols_ibkr(symbols: List[str]) -> str:
     """
     Watch symbols for real-time price updates. Returns current snapshot.
+    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
     
     Args:
         symbols: List of ticker symbols to watch
@@ -225,19 +232,21 @@ async def watch_symbols_ibkr(symbols: List[str]) -> str:
         JSON string with current prices and market data for watched symbols.
     """
     try:
+        # Always resolve symbols to conids - IBKR's true unique identifiers
         conids = get_conids(symbols)
         if not conids:
-            return json.dumps({"error": "Failed to resolve symbols", "symbols": symbols})
+            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
         
         fields = ['31', '292', '293']  # last price, ask, bid
         market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=5)
         
         if not market_data:
-            return json.dumps({"error": "Failed to retrieve watchlist data"})
+            return json.dumps({"error": "Failed to retrieve watchlist data", "conids": conids})
         
         response = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "watched_symbols": symbols,
+            "symbols_requested": symbols,
+            "conids_resolved": conids,
             "market_data": market_data,
             "status": "monitoring"
         }
@@ -298,37 +307,45 @@ async def get_historical_data_by_conid_ibkr(conid: str, bar: str, period: Option
 @server.tool()
 async def get_historical_data_by_symbol_ibkr(symbol: str, bar: str, period: Optional[str] = None, exchange: Optional[str] = None, outside_rth: bool = False) -> str:
     """
-    Get historical market data by symbol.
+    Get historical market data by symbol. Always resolves symbol to contract ID (conid).
+    IBKR uses conid as the unique identifier; symbols can be ambiguous.
     
     Args:
-        symbol: Ticker symbol
+        symbol: Ticker symbol or index (e.g., "AAPL", "VVIX")
         bar: Bar size (e.g., "1min", "5min", "1h", "1d")
         period: Data duration (e.g., "1d", "1w", "1m", "1y")
         exchange: Specific exchange (optional)
         outside_rth: Include trades outside regular trading hours (default: False)
     
     Returns:
-        JSON string with historical OHLC data
+        JSON string with historical OHLC data indexed by resolved conid
     """
     try:
         client = _get_client()
         if client is None:
             return json.dumps({"error": "IBKR client not initialized"})
         
-        result = client.marketdata_history_by_symbol(
-            symbol=symbol,
+        # Always resolve symbol to conid - IBKR's true unique identifier
+        conids = get_conids([symbol])
+        if not conids:
+            return json.dumps({"error": f"Failed to resolve symbol '{symbol}' to contract ID", "symbol": symbol, "suggestion": f"Try get_symbol_details_ibkr('{symbol}') to find available contracts"})
+        
+        conid = str(conids[0])
+        result = client.marketdata_history_by_conid(
+            conid=conid,
             bar=bar,
             period=period,
             exchange=exchange,
             outside_rth=outside_rth
         )
         
-        if not result.data:
-            return json.dumps({"error": f"No historical data found for symbol: {symbol}"})
+        if not result or not result.data:
+            return json.dumps({"error": f"No historical data found for symbol: {symbol} (conid: {conid})"})
         
         response = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbol": symbol,
+            "symbol_requested": symbol,
+            "conid_resolved": conid,
             "bar": bar,
             "period": period,
             "data": result.data
@@ -337,6 +354,7 @@ async def get_historical_data_by_symbol_ibkr(symbol: str, bar: str, period: Opti
     
     except Exception as e:
         return json.dumps({"error": f"Historical data retrieval failed: {str(e)}"})
+
 
 
 @server.tool()
@@ -388,24 +406,30 @@ async def get_historical_data_batch_by_conids_ibkr(conids: List[str], bar: str =
 async def get_historical_data_batch_by_symbols_ibkr(symbols: List[str], bar: str = "1min", period: str = "1d", outside_rth: bool = True, run_in_parallel: bool = True) -> str:
     """
     Get historical data for multiple symbols in batch (parallel by default).
+    Always resolves symbols to contract IDs (conids). IBKR uses conid as unique identifier.
     
     Args:
-        symbols: List of ticker symbols
+        symbols: List of ticker symbols (e.g., ["AAPL", "VVIX"])
         bar: Bar size (default: "1min")
         period: Data duration (default: "1d")
         outside_rth: Include after-hours data (default: True)
         run_in_parallel: Execute in parallel (default: True)
     
     Returns:
-        JSON string with historical data for all symbols
+        JSON string with historical data for all symbols, indexed by resolved conids
     """
     try:
         client = _get_client()
         if client is None:
             return json.dumps({"error": "IBKR client not initialized"})
         
-        result = client.marketdata_history_by_symbols(
-            queries=symbols,
+        # Always resolve symbols to conids - IBKR's true unique identifiers
+        conids = get_conids(symbols)
+        if not conids:
+            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find available contracts"})
+        
+        result = client.marketdata_history_by_conids(
+            conids=conids,
             bar=bar,
             period=period,
             outside_rth=outside_rth,
@@ -413,11 +437,12 @@ async def get_historical_data_batch_by_symbols_ibkr(symbols: List[str], bar: str
         )
         
         if not result:
-            return json.dumps({"error": f"No historical data found for symbols"})
+            return json.dumps({"error": f"No historical data found for symbols", "conids": conids})
         
         response = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols": symbols,
+            "symbols_requested": symbols,
+            "conids_resolved": conids,
             "bar": bar,
             "period": period,
             "parallel": run_in_parallel,
