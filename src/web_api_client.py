@@ -113,3 +113,10 @@ def iterate_to_get_data(conids, fields, max_attempts=10):
 
 
 
+if __name__ == "__main__":
+    print("Testing market data retrieval...")
+    test_conids = get_conids(['AAPL', 'MSFT', 'GOOGL'])
+    print(f"Retrieved conids: {test_conids}")
+    market_data = iterate_to_get_data(conids=test_conids, fields=['31', '292', '293'])
+    print("Market Data:")
+    print(market_data)

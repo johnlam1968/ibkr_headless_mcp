@@ -12,8 +12,6 @@ from settings import FIELDS, WATCHLIST_SYMBOLS
 from web_api_client import iterate_to_get_data
 from typing import Any, Optional, Dict, List
 
-import time
-
 
 # Global cache for market data
 _data_cache: Optional[Dict[str, Any]] = None
@@ -146,3 +144,7 @@ def get_market_data(refresh: bool = False) -> Optional[Dict[str, Any]]:
 def get_market_summary() -> str:
     """Public wrapper for getting market summary."""
     return _get_market_json()
+
+if __name__ == "__main__":
+    print("Market Summary:")
+    print(get_market_data())
