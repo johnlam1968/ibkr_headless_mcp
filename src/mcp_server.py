@@ -1,524 +1,641 @@
+"""
+MCP Server: IBKR ContractMixin Tools
+
+Exposes Interactive Brokers contract search and specification retrieval via FastMCP.
+Implements all 5 ContractMixin methods as async MCP tools with JSON responses.
+
+Tools:
+  1. search_contract() - Symbol/company name to contracts
+  2. get_contract_details() - Detailed contract specs (options, futures, bonds)
+  3. get_option_strikes() - Available strikes for options/warrants
+  4. get_trading_rules() - Trading constraints for a contract
+  5. get_bond_filters() - Bond issuer filters
+
+Usage:
+  cd /home/john/CodingProjects/llm_public
+  PYTHONPATH=./src python src/mcp_server.py
+"""
+
 import json
-import sys
-import os
-import time
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from fastmcp import FastMCP
-from using_external_llm import (
-    analyze_market,
-    narrate_market_with_instructions
-)
-from utils import get_market_data
-from web_api_client import (
-    get_conids, 
-    iterate_to_get_data,
-    one_shot_retrieve_watchlist_market_data,
-    _get_client
-)
+from ibind import IbkrClient
+from dotenv import load_dotenv
 
-# IBKR market data field mappings
-MARKET_DATA_FIELDS = {
-    '31': 'last_price',
-    '292': 'ask',
-    '293': 'bid',
-    '7': 'option_call_volume',
-    '8': 'option_put_volume',
-    '9': 'option_put_call_ratio',
-    '10': 'historical_volatility',
-    '11': 'option_implied_volatility',
-}
-
-server = FastMCP("market-analysis-server")
-
-# ============================================================================
-# IBKR BROKER DATA RETRIEVAL TOOLS
-# ============================================================================
-
-@server.tool()
-async def get_market_snapshot_ibkr(symbols: List[str]) -> str:
-    """
-    Get real-time market data snapshot for multiple symbols.
-    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
-    
-    Args:
-        symbols: List of ticker symbols (e.g., ['AAPL', 'MSFT', 'GOOGL'])
-    
-    Returns:
-        JSON string with market data including last price, bid, ask for each conid.
-    """
-    try:
-        # Always resolve symbols to conids - IBKR's true unique identifiers
-        conids = get_conids(symbols)
-        if not conids:
-            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
-        
-        fields = ['31', '292', '293']  # last_price, ask, bid
-        market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=10)
-        
-        if not market_data:
-            return json.dumps({"error": "Failed to retrieve market data", "conids": conids})
-        
-        result = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols_requested": symbols,
-            "conids_resolved": conids,
-            "data": market_data
-        }
-        return json.dumps(result, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Market snapshot failed: {str(e)}"})
-
-
-@server.tool()
-async def get_symbol_details_ibkr(symbol: str) -> str:
-    """
-    Search for and retrieve contract details for a symbol.
-    
-    Args:
-        symbol: Ticker symbol to search for (e.g., 'AAPL')
-    
-    Returns:
-        JSON string with contract information including conid, description, exchange.
-    """
-    try:
-        client = _get_client()
-        if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
-        
-        result = client.search_contract_by_symbol(symbol)
-        
-        if not result.data or len(result.data) == 0:
-            return json.dumps({"error": f"No contracts found for symbol: {symbol}"})
-        
-        contracts = result.data[:5]
-        response = {
-            "symbol": symbol,
-            "matches": contracts,
-            "count": len(contracts)
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Symbol lookup failed: {str(e)}"})
-
-
-@server.tool()
-async def get_account_summary_ibkr() -> str:
-    """
-    Get summary of brokerage accounts connected to IBKR.
-    
-    Returns:
-        JSON string with list of available accounts and their details.
-    """
-    try:
-        client = _get_client()
-        if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
-        
-        result = client.receive_brokerage_accounts()
-        
-        if not result.data:
-            return json.dumps({"error": "No accounts available"})
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "accounts": result.data
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Account retrieval failed: {str(e)}"})
-
-
-@server.tool()
-async def get_portfolio_positions_ibkr(account_id: Optional[str] = None) -> str:
-    """
-    Get current portfolio positions for an account.
-    
-    Args:
-        account_id: Account ID to retrieve positions for. If None, uses default account.
-    
-    Returns:
-        JSON string with current positions, quantities, and values.
-    """
-    try:
-        client = _get_client()
-        if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
-        
-        if account_id is None:
-            accounts_result = client.receive_brokerage_accounts()
-            if not accounts_result.data or len(accounts_result.data) == 0:
-                return json.dumps({"error": "No accounts available"})
-            account_id = accounts_result.data[0]['account']
-        
-        result = client.get_portfolio(account_id=account_id)
-        
-        if not result.data:
-            return json.dumps({"error": f"No positions found for account: {account_id}"})
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "account_id": account_id,
-            "positions": result.data
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Portfolio retrieval failed: {str(e)}"})
-
-
-@server.tool()
-async def get_market_data_enhanced_ibkr(symbols: List[str], include_bid_ask: bool = True) -> str:
-    """
-    Get enhanced market data with bid/ask spreads and additional fields.
-    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
-    
-    Args:
-        symbols: List of ticker symbols
-        include_bid_ask: Whether to include bid/ask data (default: True)
-    
-    Returns:
-        JSON string with detailed market data snapshot.
-    """
-    try:
-        # Always resolve symbols to conids - IBKR's true unique identifiers
-        conids = get_conids(symbols)
-        if not conids:
-            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
-        
-        if include_bid_ask:
-            fields = ['31', '292', '293', '10', '11']  # price, ask, bid, hist vol, impl vol
-        else:
-            fields = ['31']  # just last price
-        
-        market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=10)
-        
-        if not market_data:
-            return json.dumps({"error": "Failed to retrieve market data", "conids": conids})
-        
-        formatted_data = {}
-        for conid, data in market_data.items():
-            formatted_entry = {}
-            for field_id, value in data.items():
-                field_name = MARKET_DATA_FIELDS.get(str(field_id), field_id)
-                formatted_entry[field_name] = value
-            formatted_data[conid] = formatted_entry
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols_requested": symbols,
-            "conids_resolved": conids,
-            "data": formatted_data,
-            "fields_included": [MARKET_DATA_FIELDS.get(f, f) for f in fields]
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Enhanced market data failed: {str(e)}"})
-
-
-@server.tool()
-async def watch_symbols_ibkr(symbols: List[str]) -> str:
-    """
-    Watch symbols for real-time price updates. Returns current snapshot.
-    Always resolves symbols to contract IDs (conids) for accurate IBKR lookups.
-    
-    Args:
-        symbols: List of ticker symbols to watch
-    
-    Returns:
-        JSON string with current prices and market data for watched symbols.
-    """
-    try:
-        # Always resolve symbols to conids - IBKR's true unique identifiers
-        conids = get_conids(symbols)
-        if not conids:
-            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find correct symbols"})
-        
-        fields = ['31', '292', '293']  # last price, ask, bid
-        market_data = iterate_to_get_data(conids=conids, fields=fields, max_attempts=5)
-        
-        if not market_data:
-            return json.dumps({"error": "Failed to retrieve watchlist data", "conids": conids})
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols_requested": symbols,
-            "conids_resolved": conids,
-            "market_data": market_data,
-            "status": "monitoring"
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Watchlist failed: {str(e)}"})
+load_dotenv()
 
 
 # ============================================================================
-# HISTORICAL DATA TOOLS
+# CLIENT INITIALIZATION (Lazy-Loading)
+# ============================================================================
+
+_client: Optional[IbkrClient] = None
+
+
+def get_client() -> Optional[IbkrClient]:
+    """
+    Get or initialize the IBKR client (lazy-loaded on first use).
+    
+    Returns None if connection fails, allowing imports to succeed.
+    Subsequent calls reuse the same authenticated connection.
+    """
+    global _client
+    if _client is None:
+        try:
+            _client = IbkrClient()
+        except Exception as e:
+            print(f"⚠️ IBKR Connection Error: {type(e).__name__}: {str(e)}")
+            print("   Contract search tools will fail until connection is established")
+            return None
+    return _client
+
+
+def _to_json(data: Any) -> str:
+    """Safely convert any object to JSON string with fallback to str()"""
+    try:
+        return json.dumps(data, indent=2, default=str)
+    except Exception as e:
+        return json.dumps({"error": "JSON serialization failed", "details": str(e)})
+
+
+def _extract_result_data(result: Any) -> Any:
+    """Extract .data attribute from IbkrClient Result object"""
+    if result is None:
+        return None
+    if hasattr(result, "data"):
+        return result.data
+    return result
+
+
+# ============================================================================
+# MCP SERVER SETUP
+# ============================================================================
+
+server = FastMCP("contract-search-server")
+
+
+# ============================================================================
+# TOOL 1: Search Contract by Symbol or Company Name
 # ============================================================================
 
 @server.tool()
-async def get_historical_data_by_conid_ibkr(conid: str, bar: str, period: Optional[str] = None, exchange: Optional[str] = None, outside_rth: bool = False) -> str:
+async def search_contract(
+    symbol: str,
+    search_by_name: Optional[bool] = None,
+    security_type: Optional[str] = None
+) -> str:
     """
-    Get historical market data for a given contract ID.
+    Search for contracts by underlying symbol or company name.
+    
+    Returns what derivative contracts are available for the given underlying.
+    Must be called before using get_contract_details() endpoint.
     
     Args:
-        conid: Contract identifier
-        bar: Bar size (e.g., "1min", "5min", "1h", "1d")
-        period: Data duration (e.g., "1d", "1w", "1m", "1y")
-        exchange: Specific exchange (optional)
-        outside_rth: Include trades outside regular trading hours (default: False)
+        symbol: Ticker symbol (e.g., "AAPL") or company name if search_by_name=True.
+                Can also be bond issuer type to retrieve bonds.
+        search_by_name: If True, treat symbol as company name instead of ticker.
+        security_type: Filter by type. Valid: "STK", "IND", "BOND"
     
     Returns:
-        JSON string with historical OHLC data
+        JSON with matching contracts (conid, symbol, description, exchange, etc.)
+        or error dict if search fails.
+    
+    Examples:
+        search_contract("AAPL") 
+        → [{"conid": "265598", "symbol": "AAPL", "description": "Apple Inc"}, ...]
+        
+        search_contract("Apple Inc", search_by_name=True)
+        → [{"conid": "265598", "symbol": "AAPL", ...}, ...]
+        
+        search_contract("US0378691033", security_type="BOND")
+        → [{"conid": "...", "description": "US Treasury Bond", ...}]
     """
     try:
-        client = _get_client()
+        client = get_client()
         if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
+            return _to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
         
-        result = client.marketdata_history_by_conid(
-            conid=conid,
-            bar=bar,
-            period=period,
-            exchange=exchange,
-            outside_rth=outside_rth
+        result = client.search_contract_by_symbol(
+            symbol=symbol,
+            name=search_by_name,
+            sec_type=security_type
         )
         
-        if not result.data:
-            return json.dumps({"error": f"No historical data found for conid: {conid}"})
+        data = _extract_result_data(result)
         
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        if not data:
+            return _to_json({
+                "error": "No contracts found",
+                "searched": symbol,
+                "search_by_name": search_by_name,
+                "security_type": security_type,
+                "suggestion": "Try different symbol or enable search_by_name=true for company names"
+            })
+        
+        return _to_json({"contracts": data})
+    
+    except Exception as e:
+        return _to_json({
+            "error": "Contract search failed",
+            "exception": str(e),
+            "symbol": symbol
+        })
+
+
+# ============================================================================
+# TOOL 2: Get Detailed Contract Specifications
+# ============================================================================
+
+@server.tool()
+async def get_contract_details(
+    conid: str,
+    security_type: str,
+    expiration_month: str,
+    exchange: Optional[str] = None,
+    strike: Optional[str] = None,
+    option_right: Optional[str] = None,
+    bond_issuer_id: Optional[str] = None
+) -> str:
+    """
+    Retrieve detailed contract specifications for derivatives (futures, options, bonds, etc).
+    
+    Provides complete trading details including multiplier, tick size, trading hours,
+    position limits, and more.
+    
+    Args:
+        conid: Contract ID of the underlying (or final derivative conid directly).
+        security_type: Type of contract. Valid: "FUT" (Futures), "OPT" (Options), 
+                       "WAR" (Warrants), "CASH", "CFD", "BOND"
+        expiration_month: Expiration month/year. Format: "{3-char month}{2-char year}"
+                         Examples: "JAN25", "DEC24"
+        exchange: Specific exchange for contract details (optional).
+        strike: Strike price. **Required for options/warrants/futures options**.
+        option_right: Option direction. **Required for options**: "C" (Call) or "P" (Put).
+        bond_issuer_id: Issuer ID for bonds. **Required for bonds**: Format "e1234567".
+    
+    Returns:
+        JSON with full contract specifications or error dict if lookup fails.
+    
+    Examples:
+        get_contract_details("265598", "OPT", "JAN25", strike="150", option_right="C")
+        → {"conid": "...", "multiplier": 100, "tick_size": 0.01, ...}
+        
+        get_contract_details("209", "FUT", "JAN25")
+        → {"conid": "...", "multiplier": 50, "contract": "ES", ...}
+    """
+    # Validate required parameters BEFORE client check for better UX
+    if security_type in ["OPT", "WAR"] and (not strike or not option_right):
+        return _to_json({
+            "error": "Missing required parameters for options/warrants",
+            "required_for_options": ["strike", "option_right"],
+            "provided": {"strike": strike, "option_right": option_right}
+        })
+    
+    if security_type == "BOND" and not bond_issuer_id:
+        return _to_json({
+            "error": "Missing required parameter for bonds",
+            "required_for_bonds": ["bond_issuer_id"],
+            "issuer_id_format": "e1234567"
+        })
+    
+    try:
+        client = get_client()
+        if client is None:
+            return _to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
+        
+        result = client.search_secdef_info_by_conid(
+            conid=conid,
+            sec_type=security_type,
+            month=expiration_month,
+            exchange=exchange,
+            strike=strike,
+            right=option_right,
+            issuer_id=bond_issuer_id
+        )
+        
+        data = _extract_result_data(result)
+        
+        if not data:
+            return _to_json({
+                "error": "No contract details found",
+                "conid": conid,
+                "security_type": security_type,
+                "expiration_month": expiration_month
+            })
+        
+        return _to_json({"details": data})
+    
+    except Exception as e:
+        return _to_json({
+            "error": "Contract details lookup failed",
+            "exception": str(e),
             "conid": conid,
-            "bar": bar,
-            "period": period,
-            "data": result.data
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Historical data retrieval failed: {str(e)}"})
+            "security_type": security_type
+        })
 
+
+# ============================================================================
+# TOOL 3: Get Available Option/Warrant Strikes
+# ============================================================================
 
 @server.tool()
-async def get_historical_data_by_symbol_ibkr(symbol: str, bar: str, period: Optional[str] = None, exchange: Optional[str] = None, outside_rth: bool = False) -> str:
+async def get_option_strikes(
+    conid: str,
+    security_type: str,
+    expiration_month: str,
+    exchange: Optional[str] = None
+) -> str:
     """
-    Get historical market data by symbol. Always resolves symbol to contract ID (conid).
-    IBKR uses conid as the unique identifier; symbols can be ambiguous.
+    Get list of available strike prices for options or warrants.
+    
+    Returns all possible strikes supported for a given underlying and expiration.
+    Call this before get_contract_details() to find valid strikes for your query.
     
     Args:
-        symbol: Ticker symbol or index (e.g., "AAPL", "VVIX")
-        bar: Bar size (e.g., "1min", "5min", "1h", "1d")
-        period: Data duration (e.g., "1d", "1w", "1m", "1y")
-        exchange: Specific exchange (optional)
-        outside_rth: Include trades outside regular trading hours (default: False)
+        conid: Contract ID of the underlying.
+        security_type: Derivative type. Valid: "OPT" (Options) or "WAR" (Warrants).
+        expiration_month: Expiration month/year. Format: "{3-char month}{2-char year}"
+                         Examples: "JAN25", "DEC24"
+        exchange: Specific exchange (optional, defaults to "SMART").
     
     Returns:
-        JSON string with historical OHLC data indexed by resolved conid
+        JSON list of available strike prices or error dict if lookup fails.
+    
+    Examples:
+        get_option_strikes("265598", "OPT", "JAN25")
+        → {"strikes": [140, 145, 150, 155, 160, ...]}
+        
+        get_option_strikes("265598", "OPT", "JAN25", exchange="CBOE")
+        → {"strikes": [140, 145, 150, ...], "exchange": "CBOE"}
     """
+    # Validate security type BEFORE client check for better UX
+    if security_type not in ["OPT", "WAR"]:
+        return _to_json({
+            "error": f"Invalid security_type: {security_type}",
+            "valid_types": ["OPT", "WAR"],
+            "suggestion": "Use 'OPT' for options or 'WAR' for warrants"
+        })
+    
     try:
-        client = _get_client()
+        client = get_client()
         if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
+            return _to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
         
-        # Always resolve symbol to conid - IBKR's true unique identifier
-        conids = get_conids([symbol])
-        if not conids:
-            return json.dumps({"error": f"Failed to resolve symbol '{symbol}' to contract ID", "symbol": symbol, "suggestion": f"Try get_symbol_details_ibkr('{symbol}') to find available contracts"})
-        
-        conid = str(conids[0])
-        result = client.marketdata_history_by_conid(
+        result = client.search_strikes_by_conid(
             conid=conid,
-            bar=bar,
-            period=period,
+            sec_type=security_type,
+            month=expiration_month,
+            exchange=exchange
+        )
+        
+        data = _extract_result_data(result)
+        
+        if not data:
+            return _to_json({
+                "error": "No strikes found",
+                "conid": conid,
+                "security_type": security_type,
+                "expiration_month": expiration_month,
+                "exchange": exchange
+            })
+        
+        return _to_json({"strikes": data, "count": len(data) if isinstance(data, list) else "unknown"})
+    
+    except Exception as e:
+        return _to_json({
+            "error": "Strike lookup failed",
+            "exception": str(e),
+            "conid": conid,
+            "security_type": security_type
+        })
+
+
+# ============================================================================
+# TOOL 4: Get Trading Rules for a Contract
+# ============================================================================
+
+@server.tool()
+async def get_trading_rules(
+    conid: str,
+    exchange: Optional[str] = None,
+    is_buy: Optional[bool] = None,
+    modify_order: Optional[bool] = None,
+    order_id: Optional[int] = None
+) -> str:
+    """
+    Get trading-related rules and constraints for a specific contract.
+    
+    Returns position limits, minimum order size, trading hours, and other
+    constraints that apply when trading this contract.
+    Call this before placing orders to understand contract limitations.
+    
+    Args:
+        conid: Contract ID.
+        exchange: Specific exchange for rules (optional).
+        is_buy: Side of market. True for Buy orders, False for Sell. Defaults to True.
+        modify_order: If True, retrieve rules for modifying an existing order.
+        order_id: Order ID to track. **Required if modify_order=True**.
+    
+    Returns:
+        JSON with trading rules and constraints or error dict if lookup fails.
+    
+    Examples:
+        get_trading_rules("265598")
+        → {"min_size": 1, "position_limit": 500000, "trading_hours": {...}}
+        
+        get_trading_rules("265598", is_buy=False)
+        → {"min_size": 1, "position_limit": 500000, "sell_rules": {...}}
+        
+        get_trading_rules("265598", modify_order=True, order_id=12345)
+        → {"modification_rules": {...}, "order_id": 12345}
+    """
+    # Validate parameters BEFORE client check for better UX
+    if modify_order and order_id is None:
+        return _to_json({
+            "error": "Missing required parameter",
+            "requirement": "order_id must be provided when modify_order=True",
+            "modify_order": modify_order
+        })
+    
+    try:
+        client = get_client()
+        if client is None:
+            return _to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
+        
+        result = client.search_contract_rules(
+            conid=conid,
             exchange=exchange,
-            outside_rth=outside_rth
+            is_buy=is_buy,
+            modify_order=modify_order,
+            order_id=order_id
         )
         
-        if not result or not result.data:
-            return json.dumps({"error": f"No historical data found for symbol: {symbol} (conid: {conid})"})
+        data = _extract_result_data(result)
         
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbol_requested": symbol,
-            "conid_resolved": conid,
-            "bar": bar,
-            "period": period,
-            "data": result.data
-        }
-        return json.dumps(response, indent=2)
+        if not data:
+            return _to_json({
+                "error": "No trading rules found",
+                "conid": conid,
+                "exchange": exchange,
+                "is_buy": is_buy
+            })
+        
+        return _to_json({"rules": data})
     
     except Exception as e:
-        return json.dumps({"error": f"Historical data retrieval failed: {str(e)}"})
-
-
-
-@server.tool()
-async def get_historical_data_batch_by_conids_ibkr(conids: List[str], bar: str = "1min", period: str = "1d", outside_rth: bool = True, run_in_parallel: bool = True) -> str:
-    """
-    Get historical data for multiple contract IDs in batch (parallel by default).
-    
-    Args:
-        conids: List of contract identifiers
-        bar: Bar size (default: "1min")
-        period: Data duration (default: "1d")
-        outside_rth: Include after-hours data (default: True)
-        run_in_parallel: Execute in parallel (default: True)
-    
-    Returns:
-        JSON string with historical data for all conids
-    """
-    try:
-        client = _get_client()
-        if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
-        
-        result = client.marketdata_history_by_conids(
-            conids=conids,
-            bar=bar,
-            period=period,
-            outside_rth=outside_rth,
-            run_in_parallel=run_in_parallel
-        )
-        
-        if not result:
-            return json.dumps({"error": f"No historical data found for conids"})
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "conids": conids,
-            "bar": bar,
-            "period": period,
-            "parallel": run_in_parallel,
-            "data": result
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Batch historical data retrieval failed: {str(e)}"})
-
-
-@server.tool()
-async def get_historical_data_batch_by_symbols_ibkr(symbols: List[str], bar: str = "1min", period: str = "1d", outside_rth: bool = True, run_in_parallel: bool = True) -> str:
-    """
-    Get historical data for multiple symbols in batch (parallel by default).
-    Always resolves symbols to contract IDs (conids). IBKR uses conid as unique identifier.
-    
-    Args:
-        symbols: List of ticker symbols (e.g., ["AAPL", "VVIX"])
-        bar: Bar size (default: "1min")
-        period: Data duration (default: "1d")
-        outside_rth: Include after-hours data (default: True)
-        run_in_parallel: Execute in parallel (default: True)
-    
-    Returns:
-        JSON string with historical data for all symbols, indexed by resolved conids
-    """
-    try:
-        client = _get_client()
-        if client is None:
-            return json.dumps({"error": "IBKR client not initialized"})
-        
-        # Always resolve symbols to conids - IBKR's true unique identifiers
-        conids = get_conids(symbols)
-        if not conids:
-            return json.dumps({"error": f"Failed to resolve symbols to contract IDs", "symbols": symbols, "suggestion": "Try get_symbol_details_ibkr() to find available contracts"})
-        
-        result = client.marketdata_history_by_conids(
-            conids=conids,
-            bar=bar,
-            period=period,
-            outside_rth=outside_rth,
-            run_in_parallel=run_in_parallel
-        )
-        
-        if not result:
-            return json.dumps({"error": f"No historical data found for symbols", "conids": conids})
-        
-        response = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "symbols_requested": symbols,
-            "conids_resolved": conids,
-            "bar": bar,
-            "period": period,
-            "parallel": run_in_parallel,
-            "data": result
-        }
-        return json.dumps(response, indent=2)
-    
-    except Exception as e:
-        return json.dumps({"error": f"Batch historical data retrieval failed: {str(e)}"})
+        return _to_json({
+            "error": "Trading rules lookup failed",
+            "exception": str(e),
+            "conid": conid
+        })
 
 
 # ============================================================================
-# EXISTING MARKET ANALYSIS TOOLS
+# TOOL 5: Get Bond Issuer Filters
 # ============================================================================
 
 @server.tool()
-async def list_market_tools() -> str:
-    """List available market analysis tools so the client knows what to call"""
-    return """Available Tools:
-
-REAL-TIME MARKET DATA:
-  - get_market_snapshot_ibkr(symbols): Get real-time prices (bid/ask/last)
-  - get_symbol_details_ibkr(symbol): Look up contract details
-  - get_market_data_enhanced_ibkr(symbols, include_bid_ask): Get enhanced data with volatility
-  - watch_symbols_ibkr(symbols): Monitor symbols for real-time updates
-
-ACCOUNT & PORTFOLIO:
-  - get_account_summary_ibkr(): List connected brokerage accounts
-  - get_portfolio_positions_ibkr(account_id): Get current holdings and P&L
-
-HISTORICAL DATA (Single):
-  - get_historical_data_by_conid_ibkr(conid, bar, period): Historical data by contract ID
-  - get_historical_data_by_symbol_ibkr(symbol, bar, period): Historical data by symbol
-
-HISTORICAL DATA (Batch):
-  - get_historical_data_batch_by_conids_ibkr(conids, bar, period): Batch historical by conids (parallel)
-  - get_historical_data_batch_by_symbols_ibkr(symbols, bar, period): Batch historical by symbols (parallel)
-
-EXISTING ANALYSIS TOOLS:
-  - get_market_snapshot(): Get current market snapshot of predefined watchlist (internal data)
-  - get_custom_prompt(): Get custom prompt instructions
-  - analyze_question(question): Analyze market question with external LLM
-  - generate_narrative(): Generate detailed market narrative with external LLM"""
-
-@server.tool()
-async def get_custom_prompt() -> str:
-    """Get the user's custom prompt instructions for market analysis"""
-    from settings import NARRATIVE_INSTRUCTIONS
-    return NARRATIVE_INSTRUCTIONS
-
-@server.tool()
-async def get_market_snapshot() -> str:
-    """Get current market snapshot of predefined watchlist of key instruments to serve as context, no analysis"""
+async def get_bond_filters(bond_issuer_id: str) -> str:
+    """
+    Get available filters for a bond issuer.
+    
+    Returns filtering options for researching bonds from a specific issuer.
+    Used for bond contract searches and refinement.
+    
+    Args:
+        bond_issuer_id: Issuer identifier. Format: typically starts with "e" followed by digits.
+                       Examples: "e123456" for US Treasuries, other formats for corporate bonds.
+    
+    Returns:
+        JSON with available bond filters or error dict if lookup fails.
+    
+    Examples:
+        get_bond_filters("e123456")
+        → {"filters": {"maturity": [...], "rating": [...], "yield": [...]}}
+    """
     try:
-        return json.dumps(get_market_data(), indent=2)
+        client = get_client()
+        if client is None:
+            return _to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
+        
+        result = client.search_bond_filter_information(
+            symbol="BOND",
+            issuer_id=bond_issuer_id
+        )
+        
+        data = _extract_result_data(result)
+        
+        if not data:
+            return _to_json({
+                "error": "No bond filters found",
+                "bond_issuer_id": bond_issuer_id,
+                "suggestion": "Check issuer_id format (should be like 'e123456')"
+            })
+        
+        return _to_json({"filters": data})
+    
     except Exception as e:
-        return f"Error: {str(e)}"
+        return _to_json({
+            "error": "Bond filters lookup failed",
+            "exception": str(e),
+            "bond_issuer_id": bond_issuer_id
+        })
+
+
+# ============================================================================
+# UTILITY TOOL: List All Available Tools
+# ============================================================================
 
 @server.tool()
-async def analyze_question(question: str) -> str:
-    """Analyze market question with with an external LLM, then serve context"""
-    try:
-        return analyze_market(question)
-    except Exception as e:
-        return f"Error: {str(e)}"
+async def list_tools() -> str:
+    """
+    List all available contract search tools and typical usage workflows.
+    
+    Returns:
+        Markdown formatted documentation of all tools, parameters, and examples.
+    """
+    return """# IBKR Contract Search MCP Tools
 
-@server.tool()
-async def generate_narrative() -> str:
-    """Generate detailed market narrative analysis with an external LLM, then serve context"""
-    try:
-        return narrate_market_with_instructions()
-    except Exception as e:
-        return f"Error: {str(e)}"
+## Available Tools (6 total)
+
+### 1. search_contract(symbol, search_by_name=None, security_type=None)
+Search for contracts by ticker symbol, company name, or bond issuer.
+
+**Parameters:**
+- `symbol` (str): Ticker (e.g., "AAPL") or company name or bond issuer type
+- `search_by_name` (bool, optional): If True, treat symbol as company name
+- `security_type` (str, optional): Filter by "STK", "IND", or "BOND"
+
+**Returns:** List of matching contracts with conid, symbol, description, exchange
+
+**Example:** search_contract("AAPL") → Returns all AAPL contracts
+**Example:** search_contract("Apple", search_by_name=True) → Returns Apple Inc contracts
+
+---
+
+### 2. get_contract_details(conid, security_type, expiration_month, exchange=None, strike=None, option_right=None, bond_issuer_id=None)
+Get detailed specifications for a specific derivative contract.
+
+**Parameters:**
+- `conid` (str): Contract ID (from search_contract result)
+- `security_type` (str): "OPT", "FUT", "WAR", "CASH", "CFD", "BOND"
+- `expiration_month` (str): Month/year format "JAN25", "DEC24"
+- `strike` (str, optional): **Required for OPT/WAR/FUT options**
+- `option_right` (str, optional): **Required for options**: "C" or "P"
+- `bond_issuer_id` (str, optional): **Required for BOND**: Format "e1234567"
+- `exchange` (str, optional): Specific exchange
+
+**Returns:** Full contract specifications (multiplier, tick size, trading hours, etc.)
+
+**Example:** get_contract_details("265598", "OPT", "JAN25", strike="150", option_right="C")
+**Example:** get_contract_details("209", "FUT", "JAN25")
+
+---
+
+### 3. get_option_strikes(conid, security_type, expiration_month, exchange=None)
+Find all available strike prices for options/warrants on a given underlying.
+
+**Parameters:**
+- `conid` (str): Contract ID of underlying
+- `security_type` (str): "OPT" or "WAR"
+- `expiration_month` (str): Format "JAN25", "DEC24"
+- `exchange` (str, optional): Defaults to "SMART"
+
+**Returns:** List of available strike prices
+
+**Example:** get_option_strikes("265598", "OPT", "JAN25") → [140, 145, 150, ...]
+
+---
+
+### 4. get_trading_rules(conid, exchange=None, is_buy=None, modify_order=None, order_id=None)
+Get trading constraints and rules for a contract before placing orders.
+
+**Parameters:**
+- `conid` (str): Contract ID
+- `is_buy` (bool, optional): True for Buy, False for Sell. Default True.
+- `exchange` (str, optional): Specific exchange
+- `modify_order` (bool, optional): If True, get rules for modifying orders
+- `order_id` (int, optional): **Required if modify_order=True**
+
+**Returns:** Position limits, minimum order size, trading hours, other constraints
+
+**Example:** get_trading_rules("265598") → Position limits, order minimums
+**Example:** get_trading_rules("265598", modify_order=True, order_id=12345)
+
+---
+
+### 5. get_bond_filters(bond_issuer_id)
+Get filtering options for researching bonds from a specific issuer.
+
+**Parameters:**
+- `bond_issuer_id` (str): Issuer ID (format: "e123456")
+
+**Returns:** Available bond filters (maturity, rating, yield, etc.)
+
+**Example:** get_bond_filters("e123456") → Maturity ranges, ratings, yields
+
+---
+
+### 6. list_tools()
+Show this documentation with all tools, parameters, and examples.
+
+---
+
+## Typical Workflows
+
+### Workflow 1: Find an Apple Stock Call Option
+```
+1. search_contract("AAPL") 
+   → Extract conid (e.g., "265598")
+
+2. get_option_strikes("265598", "OPT", "JAN25")
+   → See available strikes: [140, 145, 150, ...]
+
+3. get_contract_details("265598", "OPT", "JAN25", strike="150", option_right="C")
+   → Full option specs: multiplier=100, tick_size=0.01, ...
+
+4. get_trading_rules("265598")
+   → Trading constraints: position_limit=500000, min_size=1, ...
+```
+
+### Workflow 2: Research a Futures Contract
+```
+1. search_contract("ES")
+   → Find E-mini S&P 500 futures contract
+
+2. get_contract_details(conid, "FUT", "JAN25")
+   → Get specs: multiplier=50, tick_size=0.25, ...
+
+3. get_trading_rules(conid, is_buy=True)
+   → Check position limits and order minimums
+```
+
+### Workflow 3: Search for Bonds
+```
+1. search_contract("BOND", security_type="BOND")
+   → Browse available bond issuers
+
+2. get_bond_filters("e123456")
+   → See maturity, rating, and yield options
+
+3. search_contract("US Treasury", search_by_name=True, security_type="BOND")
+   → Find specific bond contracts
+```
+
+---
+
+## Notes
+
+- **Prerequisites:** All tools require IBKR account authentication via .env credentials
+- **Conid Required:** Most tools require a conid from search_contract() output
+- **Month Format:** Expiration months use "{3-char month}{2-char year}" format (e.g., "JAN25")
+- **Option Parameters:** strike and option_right are required for options queries
+- **Bond Format:** Issuer IDs typically start with "e" (e.g., "e123456")
+
+---
+
+Generated by IBKR Contract Search MCP Server
+"""
+
+
+# ============================================================================
+# SERVER STARTUP
+# ============================================================================
 
 if __name__ == "__main__":
+    print("\n" + "="*70)
+    print("IBKR Contract Search MCP Server")
+    print("="*70)
+    print("\n✅ 6 MCP tools loaded:")
+    print("   1. search_contract() - Search by symbol/name/issuer")
+    print("   2. get_contract_details() - Get derivative specs")
+    print("   3. get_option_strikes() - Find available strikes")
+    print("   4. get_trading_rules() - Get trading constraints")
+    print("   5. get_bond_filters() - Get bond issuer filters")
+    print("   6. list_tools() - Show this documentation")
+    
+    client = get_client()
+    if client:
+        print("\n✅ IBKR Client: Connected")
+    else:
+        print("\n⚠️  IBKR Client: Not initialized (will connect on first tool call)")
+    
+    print("\n📡 Server running on stdio transport...")
+    print("="*70 + "\n")
+    
     server.run()
-
-# to run the server from command line:
-# cd /home/john/CodingProjects/llm_public && PYTHONPATH=./src python src/mcp_server.py

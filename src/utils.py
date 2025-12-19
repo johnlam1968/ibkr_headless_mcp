@@ -1,21 +1,26 @@
 # ============================================================================
-# Utility Functions
+# Data Transformation & Caching Utilities
 # ============================================================================
+"""
+Data transformation and field formatting utilities.
+
+Focus: Converting raw IBKR data to usable formats and sanitizing for LLM consumption.
+Each call fetches fresh data (no caching for real-time MCP server).
+"""
 
 import json
 from datetime import date, datetime
 import time
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any, Dict, Optional, List
 
-from settings import FIELDS, WATCHLIST_SYMBOLS
-from web_api_client import iterate_to_get_data
-from typing import Any, Optional, Dict, List
+from settings import DEFAULT_FIELDS, PREDEFINED_WATCHLIST_SYMBOLS
+from ibind_web_client import iterate_to_fetch_market_data, get_conids
 
 
-# Global cache for market data
-_data_cache: Optional[Dict[str, Any]] = None
-_conids_cache: Optional[List[str]] = None
+# ============================================================================
+# INTERNAL HELPERS: Data Formatting
+# ============================================================================
 
 
 def _sanitize_for_json(obj: Any) -> Any:
@@ -90,44 +95,47 @@ def _has_valid_prices(data: Dict[str, Any]) -> bool:
     return False
 
 
-def _get_watchlist_market_data(refresh: bool = False) -> Optional[Dict[str, Any]]:
+def get_market_data_of_watchlist(conids: List[int], fields: List[str]=DEFAULT_FIELDS) -> Optional[Dict[str, Any]]:
     """
-    Retrieve market data for all configured symbols.
-
-    Args:
-        refresh: Force refresh from API (bypass cache)
-
+    Fetch real-time market data for predefined watchlist symbols.
+    
+    Each call fetches fresh data from IBKR (no caching for MCP server).
+    Validates that data contains valid prices before returning.
+    
     Returns:
         Market data dict keyed by conid, or None if fetch fails
     """
-    global _data_cache, _conids_cache
-
-    if not refresh and _data_cache is not None:
-        return _data_cache
-
-    # Ensure we have conids
-    if _conids_cache is None:
-        from web_api_client import get_conids
-        _conids_cache = get_conids(WATCHLIST_SYMBOLS)
-
+    
     for attempt in range(3):
-        data = iterate_to_get_data(conids=_conids_cache, fields=FIELDS)
+        data = iterate_to_fetch_market_data(conids=conids, fields=fields)
         if data and _has_valid_prices(data):
-            _data_cache = data
-            return _data_cache
+            return data
         if attempt < 2:
             time.sleep(0.5)
+    
+    return None
 
-    _data_cache = data
-    return _data_cache
+def get_market_data_of_predefined_watchlist() -> str:
+    try:
+        conids = get_conids(PREDEFINED_WATCHLIST_SYMBOLS)
+        if not conids:
+            return "Watchlist symbols not found."
+    except Exception as e:
+        return f"Error resolving watchlist symbols: {e}"
+    return get_market_data(conids)
 
 
-def _get_market_json() -> str:
-    """Fetch market data, remove metadata, sanitize, and return as JSON string."""
-    data = _get_watchlist_market_data()
+def get_market_data(conids: List[int], fields: List[str]=DEFAULT_FIELDS) -> str:
+    """
+    Fetch real-time market data for predefined watchlist, remove metadata, sanitize, and return as JSON string.
+    
+    Returns:
+        JSON string with cleaned market data, or error message if unavailable
+    """
+    data = get_market_data_of_watchlist(conids=conids, fields=fields)
     if not data:
         return "Market data unavailable."
-
+    
     filtered = _remove_metadata(data)
     sanitized = _sanitize_for_json(filtered)
     try:
@@ -135,16 +143,3 @@ def _get_market_json() -> str:
     except Exception:
         return json.dumps(sanitized, separators=(",", ":"), default=str)
 
-
-def get_market_data(refresh: bool = False) -> Optional[Dict[str, Any]]:
-    """Public wrapper for retrieving market data."""
-    return _get_watchlist_market_data(refresh=refresh)
-
-
-def get_market_summary() -> str:
-    """Public wrapper for getting market summary."""
-    return _get_market_json()
-
-if __name__ == "__main__":
-    print("Market Summary:")
-    print(get_market_data())

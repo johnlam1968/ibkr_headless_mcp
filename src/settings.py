@@ -78,7 +78,7 @@ NARRATIVE_INSTRUCTIONS = BACKGROUND_KNOWLEDGE + "\n\n" + ANALYSIS_INSTRUCTIONS
 
 """Settings for market data retrieval."""
 
-WATCHLIST_SYMBOLS = [
+PREDEFINED_WATCHLIST_SYMBOLS = [
     "VVIX",
     "VIX",
     "VXM",
@@ -111,4 +111,5 @@ WATCHLIST_SYMBOLS = [
     "VIX6M",
     "VIX1Y"
 ]
-FIELDS = ['55','7051','7635','31','70','71','7295','7741', '7293','7294', '7681', '7724', '7679', '7678','7283', '7087']
+DEFAULT_FIELDS = ['55','7051','7635','31','70','71','7295','7741', '7293','7294', '7681', '7724', '7679', '7678','7283', '7087']
+# IBKR market data field mappings
