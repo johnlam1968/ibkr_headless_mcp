@@ -17,7 +17,7 @@ Usage:
 """
 
 import json
-from typing import Optional, List, Any, Dict
+from typing import Optional, Any
 from fastmcp import FastMCP
 from ibind import IbkrClient
 from dotenv import load_dotenv
@@ -118,11 +118,24 @@ async def search_contract(
                 "suggestion": "Check credentials and internet connection"
             })
         
-        result = client.search_contract_by_symbol(
-            symbol=symbol,
-            name=search_by_name,
-            sec_type=security_type
-        )
+        if search_by_name is not None and security_type is not None:
+            result = client.search_contract_by_symbol(
+                symbol=symbol,
+                name=search_by_name,
+                sec_type=security_type
+            )
+        elif search_by_name is not None:
+            result = client.search_contract_by_symbol(
+                symbol=symbol,
+                name=search_by_name
+            )
+        elif security_type is not None:
+            result = client.search_contract_by_symbol(
+                symbol=symbol,
+                sec_type=security_type
+            )
+        else:
+            result = client.search_contract_by_symbol(symbol=symbol)
         
         data = _extract_result_data(result)
         
@@ -213,10 +226,10 @@ async def get_contract_details(
             conid=conid,
             sec_type=security_type,
             month=expiration_month,
-            exchange=exchange,
-            strike=strike,
-            right=option_right,
-            issuer_id=bond_issuer_id
+            exchange=exchange or "",
+            strike=strike or "",
+            right=option_right or "",
+            issuer_id=bond_issuer_id or ""
         )
         
         data = _extract_result_data(result)
@@ -294,7 +307,7 @@ async def get_option_strikes(
             conid=conid,
             sec_type=security_type,
             month=expiration_month,
-            exchange=exchange
+            exchange=exchange or ""
         )
         
         data = _extract_result_data(result)
@@ -308,7 +321,8 @@ async def get_option_strikes(
                 "exchange": exchange
             })
         
-        return _to_json({"strikes": data, "count": len(data) if isinstance(data, list) else "unknown"})
+        count = len(data) if isinstance(data, list) else "unknown"  # type: ignore
+        return _to_json({"strikes": data, "count": count})
     
     except Exception as e:
         return _to_json({
@@ -376,10 +390,10 @@ async def get_trading_rules(
         
         result = client.search_contract_rules(
             conid=conid,
-            exchange=exchange,
-            is_buy=is_buy,
-            modify_order=modify_order,
-            order_id=order_id
+            exchange=exchange or "",
+            is_buy=is_buy if is_buy is not None else False,
+            modify_order=modify_order if modify_order is not None else False,
+            order_id=order_id or 0
         )
         
         data = _extract_result_data(result)
