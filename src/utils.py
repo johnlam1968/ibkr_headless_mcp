@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, List
 
 from ibind import IbkrClient
 from ibind.client.ibkr_definitions import snapshot_by_id
+from ibind.client.ibkr_utils import StockQueries
+
 from ibind import Result
 
 # from settings import DEFAULT_FIELDS, PREDEFINED_WATCHLIST_SYMBOLS
@@ -216,7 +218,7 @@ def fetch_raw_market_data(conid: str, fields: list[str]) -> Optional[Dict[str, A
 
     Args:
         conid: Contract ID
-        fields: List of field IDs to retrieve
+        fields: List of field IDs to retrieve (or single string that will be converted to list)
 
     Returns:
         Dict mapping conid to raw field data, or None if no data
@@ -225,7 +227,14 @@ def fetch_raw_market_data(conid: str, fields: list[str]) -> Optional[Dict[str, A
     if client is None:
         return None
 
-    response = client.live_marketdata_snapshot(conids=conid, fields=fields)
+    # Ensure fields is a list (handles both list and single string)
+    if isinstance(fields, str):
+        field_list = [fields]
+    else:
+        field_list = fields
+
+    # Type ignore because field_list is List[str] which should be compatible with OneOrMany[str]
+    response = client.live_marketdata_snapshot(conids=conid, fields=field_list)  # type: ignore[arg-type]
     entries = extract_result_data(response)
 
     if not entries:

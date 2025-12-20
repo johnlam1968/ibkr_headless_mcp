@@ -52,7 +52,7 @@ Usage:
   PYTHONPATH=./src python src/mcp_server.py
 """
 
-from typing import Optional
+from typing import Optional, Union, List
 from fastmcp import FastMCP
 
 from dotenv import load_dotenv
@@ -80,78 +80,78 @@ server = FastMCP("ibkr-contract-server")
 # TOOL 1: Search Contract by Symbol or Company Name
 # ============================================================================
 
-@server.tool()
-async def search_contract(
-    symbol: str,
-    search_by_name: Optional[bool] = None,
-    security_type: Optional[str] = None
-) -> str:
-    """
-    Search for contracts by underlying symbol or company name.
+# @server.tool()
+# async def search_contract(
+#     symbol: str,
+#     search_by_name: Optional[bool] = None,
+#     security_type: Optional[str] = None
+# ) -> str:
+#     """
+#     Search for contracts, particularly derivatives, by underlying symbol or company name.
     
-    Returns what derivative contracts are available for the given underlying.
-    This endpoint must be called before using get_contract_details().
+#     Returns what derivative contracts are available for the given underlying.
+#     This endpoint must be called before using get_contract_details().
     
-    Args:
-        symbol: Ticker symbol (e.g., "AAPL") or company name if search_by_name=True.
-                Can also be bond issuer type to retrieve bonds.
-        search_by_name: If True, treat symbol as company name instead of ticker.
-        security_type: Filter by type. Valid: "STK", "IND", "BOND"
+#     Args:
+#         symbol: Ticker symbol (e.g., "AAPL") or company name if search_by_name=True.
+#                 Can also be bond issuer type to retrieve bonds.
+#         search_by_name: If True, treat symbol as company name instead of ticker.
+#         security_type: Filter by type. Valid: "STK", "IND", "BOND"
     
-    Returns:
-        JSON with matching contracts (conid, symbol, description, exchange, etc.)
-        or error dict if search fails.
+#     Returns:
+#         JSON with matching contracts (conid, symbol, description, exchange, etc.)
+#         or error dict if search fails.
     
-    Examples:
-        search_contract("AAPL") 
-        search_contract("Apple", search_by_name=True)
-        search_contract("US Treasury", security_type="BOND")
-    """
-    try:
-        client = get_client()
-        if client is None:
-            return to_json({
-                "error": "IBKR client not initialized",
-                "suggestion": "Check credentials and internet connection"
-            })
+#     Examples:
+#         search_contract("AAPL") 
+#         search_contract("Apple", search_by_name=True)
+#         search_contract("US Treasury", security_type="BOND")
+#     """
+#     try:
+#         client = get_client()
+#         if client is None:
+#             return to_json({
+#                 "error": "IBKR client not initialized",
+#                 "suggestion": "Check credentials and internet connection"
+#             })
         
-        if search_by_name is not None and security_type is not None:
-            result = client.search_contract_by_symbol(
-                symbol=symbol,
-                name=search_by_name,
-                sec_type=security_type
-            )
-        elif search_by_name is not None:
-            result = client.search_contract_by_symbol(
-                symbol=symbol,
-                name=search_by_name
-            )
-        elif security_type is not None:
-            result = client.search_contract_by_symbol(
-                symbol=symbol,
-                sec_type=security_type
-            )
-        else:
-            result = client.search_contract_by_symbol(symbol=symbol)
+#         if search_by_name is not None and security_type is not None:
+#             result = client.search_contract_by_symbol(
+#                 symbol=symbol,
+#                 name=search_by_name,
+#                 sec_type=security_type
+#             )
+#         elif search_by_name is not None:
+#             result = client.search_contract_by_symbol(
+#                 symbol=symbol,
+#                 name=search_by_name
+#             )
+#         elif security_type is not None:
+#             result = client.search_contract_by_symbol(
+#                 symbol=symbol,
+#                 sec_type=security_type
+#             )
+#         else:
+#             result = client.search_contract_by_symbol(symbol=symbol)
         
-        data = extract_result_data(result)
+#         data = extract_result_data(result)
         
-        if not data:
-            return to_json({
-                "error": "No contracts found",
-                "searched": symbol,
-                "search_by_name": search_by_name,
-                "security_type": security_type
-            })
+#         if not data:
+#             return to_json({
+#                 "error": "No contracts found",
+#                 "searched": symbol,
+#                 "search_by_name": search_by_name,
+#                 "security_type": security_type
+#             })
         
-        return to_json({"contracts": data})
+#         return to_json({"contracts": data})
     
-    except Exception as e:
-        return to_json({
-            "error": "Contract search failed",
-            "exception": str(e),
-            "symbol": symbol
-        })
+#     except Exception as e:
+#         return to_json({
+#             "error": "Contract search failed",
+#             "exception": str(e),
+#             "symbol": symbol
+#         })
 
 
 # ============================================================================
@@ -868,228 +868,228 @@ async def security_futures(symbols: str) -> str:
 # TOOL 14: Get Stock Information by Symbol
 # ============================================================================
 
-@server.tool()
-async def security_stocks(
-    queries: StockQueries,
-    default_filtering: Optional[bool] = None
-) -> str:
-    """
-    Get stock information for given symbols with advanced filtering.
+# @server.tool()
+# async def security_stocks(
+#     queries: StockQueries,
+#     default_filtering: Optional[bool] = None
+# ) -> str:
+#     """
+#     Get stock information for given symbols with advanced filtering.
     
-    Retrieves and filters stock information based on StockQuery objects.
-    This is the proper implementation using security_stocks_by_symbol().
+#     Retrieves and filters stock information based on StockQuery objects.
+#     This is the proper implementation using security_stocks_by_symbol().
     
-    Args:
-        queries: StockQueries object or list of StockQuery objects.
-                 Can also be a comma-separated string of symbols for simple usage.
-                 Example strings: "AAPL", "AAPL,MSFT,GOOGL"
+#     Args:
+#         queries: StockQueries object or list of StockQuery objects.
+#                  Can also be a comma-separated string of symbols for simple usage.
+#                  Example strings: "AAPL", "AAPL,MSFT,GOOGL"
                  
-                 **For LLM Clients:**
-                 - **Simple usage:** Use comma-separated string: "AAPL,MSFT,GOOGL"
-                 - **Advanced filtering:** Use StockQuery objects for precise control
+#                  **For LLM Clients:**
+#                  - **Simple usage:** Use comma-separated string: "AAPL,MSFT,GOOGL"
+#                  - **Advanced filtering:** Use StockQuery objects for precise control
                  
-                 **StockQuery Structure:**
-                 ```python
-                 {
-                     "symbol": "AAPL",                    # Required: Stock symbol
-                     "name_match": "Apple",              # Optional: Partial name match
-                     "instrument_conditions": {          # Optional: Exact instrument matches
-                         "some_instrument_field": "value"
-                     },
-                     "contract_conditions": {            # Optional: Exact contract matches
-                         "isUS": True,                   # Filter for US contracts
-                         "exchange": "NASDAQ"            # Filter by exchange
-                     }
-                 }
-                 ```
+#                  **StockQuery Structure:**
+#                  ```python
+#                  {
+#                      "symbol": "AAPL",                    # Required: Stock symbol
+#                      "name_match": "Apple",              # Optional: Partial name match
+#                      "instrument_conditions": {          # Optional: Exact instrument matches
+#                          "some_instrument_field": "value"
+#                      },
+#                      "contract_conditions": {            # Optional: Exact contract matches
+#                          "isUS": True,                   # Filter for US contracts
+#                          "exchange": "NASDAQ"            # Filter by exchange
+#                      }
+#                  }
+#                  ```
                  
-        default_filtering: Whether to apply default US contract filtering {isUS: True}.
-                          Defaults to None (uses global default).
-                          Set to True to filter for US contracts only.
-                          Set to False to disable default filtering.
+#         default_filtering: Whether to apply default US contract filtering {isUS: True}.
+#                           Defaults to None (uses global default).
+#                           Set to True to filter for US contracts only.
+#                           Set to False to disable default filtering.
     
-    Returns:
-        JSON with stock information or error dict.
+#     Returns:
+#         JSON with stock information or error dict.
     
-    Examples:
-        # Simple string usage (recommended for LLM clients)
-        security_stocks("AAPL")
-        security_stocks("AAPL,MSFT,GOOGL")
+#     Examples:
+#         # Simple string usage (recommended for LLM clients)
+#         security_stocks("AAPL")
+#         security_stocks("AAPL,MSFT,GOOGL")
         
-        # Advanced StockQuery usage
-        security_stocks([
-            {"symbol": "AAPL", "contract_conditions": {"isUS": True}},
-            {"symbol": "MSFT", "name_match": "Microsoft"}
-        ])
+#         # Advanced StockQuery usage
+#         security_stocks([
+#             {"symbol": "AAPL", "contract_conditions": {"isUS": True}},
+#             {"symbol": "MSFT", "name_match": "Microsoft"}
+#         ])
         
-        # With default filtering
-        security_stocks("AAPL,MSFT", default_filtering=True)
+#         # With default filtering
+#         security_stocks("AAPL,MSFT", default_filtering=True)
         
-    Common Contract Conditions for filtering:
-        - "isUS": True/False - US-listed contracts
-        - "exchange": "NASDAQ"/"NYSE" - Specific exchange
-        - "currency": "USD" - Trading currency
-        - "assetClass": "STK" - Asset class
-    """
-    try:
-        client = get_client()
-        if client is None:
-            return to_json({
-                "error": "IBKR client not initialized",
-                "suggestion": "Check credentials and internet connection"
-            })
+#     Common Contract Conditions for filtering:
+#         - "isUS": True/False - US-listed contracts
+#         - "exchange": "NASDAQ"/"NYSE" - Specific exchange
+#         - "currency": "USD" - Trading currency
+#         - "assetClass": "STK" - Asset class
+#     """
+#     try:
+#         client = get_client()
+#         if client is None:
+#             return to_json({
+#                 "error": "IBKR client not initialized",
+#                 "suggestion": "Check credentials and internet connection"
+#             })
         
-        # Handle simple string input (comma-separated symbols)
-        if isinstance(queries, str):
-            # Convert comma-separated string to list of StockQuery objects
-            from ibind.client.ibkr_utils import StockQuery
-            symbol_list = [s.strip() for s in queries.split(',')]
-            queries = [StockQuery(symbol=symbol) for symbol in symbol_list]
+#         # Handle simple string input (comma-separated symbols)
+#         if isinstance(queries, str):
+#             # Convert comma-separated string to list of StockQuery objects
+#             from ibind.client.ibkr_utils import StockQuery
+#             symbol_list = [s.strip() for s in queries.split(',')]
+#             queries = [StockQuery(symbol=symbol) for symbol in symbol_list]
         
-        # Call method with conditional parameters
-        if default_filtering is not None:
-            result = client.security_stocks_by_symbol(
-                queries=queries,
-                default_filtering=default_filtering
-            )
-        else:
-            result = client.security_stocks_by_symbol(queries=queries)
-        data = extract_result_data(result)
+#         # Call method with conditional parameters
+#         if default_filtering is not None:
+#             result = client.security_stocks_by_symbol(
+#                 queries=queries,
+#                 default_filtering=default_filtering
+#             )
+#         else:
+#             result = client.security_stocks_by_symbol(queries=queries)
+#         data = extract_result_data(result)
         
-        if not data:
-            return to_json({
-                "error": "No stock information found",
-                "queries": str(queries),
-                "default_filtering": default_filtering
-            })
+#         if not data:
+#             return to_json({
+#                 "error": "No stock information found",
+#                 "queries": str(queries),
+#                 "default_filtering": default_filtering
+#             })
         
-        return to_json({"stocks": data})
+#         return to_json({"stocks": data})
     
-    except Exception as e:
-        return to_json({
-            "error": "Stock lookup failed",
-            "exception": str(e),
-            "queries": str(queries)
-        })
+#     except Exception as e:
+#         return to_json({
+#             "error": "Stock lookup failed",
+#             "exception": str(e),
+#             "queries": str(queries)
+#         })
 
 
 # ============================================================================
 # TOOL 15: Get Contract IDs by Symbol (Unambiguous Conid Resolution)
 # ============================================================================
 
-@server.tool()
-async def stock_conid_by_symbol(
-    queries: StockQueries,
-    default_filtering: Optional[bool] = None,
-    return_type: str = "dict"
-) -> str:
-    """
-    Get unambiguous contract IDs (conids) for given stock symbols with filtering.
+# @server.tool()
+# async def stock_conid_by_symbol(
+#     queries: StockQueries,
+#     default_filtering: Optional[bool] = None,
+#     return_type: str = "dict"
+# ) -> str:
+#     """
+#     Get unambiguous contract IDs (conids) for given stock symbols with filtering.
     
-    Returns contract IDs for stock queries, ensuring only one conid per query.
-    This is the recommended method for conid resolution when you need precise
-    mapping from symbols to contract IDs.
+#     Returns contract IDs for stock queries, ensuring only one conid per query.
+#     This is the recommended method for conid resolution when you need precise
+#     mapping from symbols to contract IDs.
     
-    Args:
-        queries: StockQueries object or list of StockQuery objects.
-                 Can also be a comma-separated string of symbols for simple usage.
-                 Example strings: "AAPL", "AAPL,MSFT,GOOGL"
+#     Args:
+#         queries: StockQueries object or list of StockQuery objects.
+#                  Can also be a comma-separated string of symbols for simple usage.
+#                  Example strings: "AAPL", "AAPL,MSFT,GOOGL"
                  
-                 **For LLM Clients:**
-                 - **Simple usage:** Use comma-separated string: "AAPL,MSFT,GOOGL"
-                 - **Advanced filtering:** Use StockQuery objects for precise control
+#                  **For LLM Clients:**
+#                  - **Simple usage:** Use comma-separated string: "AAPL,MSFT,GOOGL"
+#                  - **Advanced filtering:** Use StockQuery objects for precise control
                  
-                 **StockQuery Structure:**
-                 ```python
-                 {
-                     "symbol": "AAPL",                    # Required: Stock symbol
-                     "name_match": "Apple",              # Optional: Partial name match
-                     "instrument_conditions": {          # Optional: Exact instrument matches
-                         "some_instrument_field": "value"
-                     },
-                     "contract_conditions": {            # Optional: Exact contract matches
-                         "isUS": True,                   # Filter for US contracts
-                         "exchange": "NASDAQ"            # Filter by exchange
-                     }
-                 }
-                 ```
+#                  **StockQuery Structure:**
+#                  ```python
+#                  {
+#                      "symbol": "AAPL",                    # Required: Stock symbol
+#                      "name_match": "Apple",              # Optional: Partial name match
+#                      "instrument_conditions": {          # Optional: Exact instrument matches
+#                          "some_instrument_field": "value"
+#                      },
+#                      "contract_conditions": {            # Optional: Exact contract matches
+#                          "isUS": True,                   # Filter for US contracts
+#                          "exchange": "NASDAQ"            # Filter by exchange
+#                      }
+#                  }
+#                  ```
                  
-        default_filtering: Whether to apply default US contract filtering {isUS: True}.
-                          Defaults to None (uses global default).
-                          Set to True to filter for US contracts only.
-                          Set to False to disable default filtering.
-        return_type: Return format - "dict" for {symbol: conid} mapping or 
-                    "list" for list of conids. Default: "dict"
+#         default_filtering: Whether to apply default US contract filtering {isUS: True}.
+#                           Defaults to None (uses global default).
+#                           Set to True to filter for US contracts only.
+#                           Set to False to disable default filtering.
+#         return_type: Return format - "dict" for {symbol: conid} mapping or 
+#                     "list" for list of conids. Default: "dict"
     
-    Returns:
-        JSON with conid mapping or list, or error dict.
+#     Returns:
+#         JSON with conid mapping or list, or error dict.
     
-    Examples:
-        # Simple string usage (recommended for LLM clients)
-        stock_conid_by_symbol("AAPL")
-        stock_conid_by_symbol("AAPL,MSFT,GOOGL")
-        stock_conid_by_symbol("AAPL,MSFT,GOOGL", return_type="list")
+#     Examples:
+#         # Simple string usage (recommended for LLM clients)
+#         stock_conid_by_symbol("AAPL")
+#         stock_conid_by_symbol("AAPL,MSFT,GOOGL")
+#         stock_conid_by_symbol("AAPL,MSFT,GOOGL", return_type="list")
         
-        # Advanced StockQuery usage
-        stock_conid_by_symbol([
-            {"symbol": "AAPL", "contract_conditions": {"isUS": True}},
-            {"symbol": "MSFT", "name_match": "Microsoft"}
-        ])
+#         # Advanced StockQuery usage
+#         stock_conid_by_symbol([
+#             {"symbol": "AAPL", "contract_conditions": {"isUS": True}},
+#             {"symbol": "MSFT", "name_match": "Microsoft"}
+#         ])
         
-        # With default filtering
-        stock_conid_by_symbol("AAPL,MSFT", default_filtering=True)
+#         # With default filtering
+#         stock_conid_by_symbol("AAPL,MSFT", default_filtering=True)
         
-    Common Contract Conditions for filtering:
-        - "isUS": True/False - US-listed contracts
-        - "exchange": "NASDAQ"/"NYSE" - Specific exchange
-        - "currency": "USD" - Trading currency
-        - "assetClass": "STK" - Asset class
-    """
-    try:
-        client = get_client()
-        if client is None:
-            return to_json({
-                "error": "IBKR client not initialized",
-                "suggestion": "Check credentials and internet connection"
-            })
+#     Common Contract Conditions for filtering:
+#         - "isUS": True/False - US-listed contracts
+#         - "exchange": "NASDAQ"/"NYSE" - Specific exchange
+#         - "currency": "USD" - Trading currency
+#         - "assetClass": "STK" - Asset class
+#     """
+#     try:
+#         client = get_client()
+#         if client is None:
+#             return to_json({
+#                 "error": "IBKR client not initialized",
+#                 "suggestion": "Check credentials and internet connection"
+#             })
         
-        # Handle simple string input (comma-separated symbols)
-        if isinstance(queries, str):
-            # Convert comma-separated string to list of StockQuery objects
-            from ibind.client.ibkr_utils import StockQuery
-            symbol_list = [s.strip() for s in queries.split(',')]
-            queries = [StockQuery(symbol=symbol) for symbol in symbol_list]
+#         # Handle simple string input (comma-separated symbols)
+#         if isinstance(queries, str):
+#             # Convert comma-separated string to list of StockQuery objects
+#             from ibind.client.ibkr_utils import StockQuery
+#             symbol_list = [s.strip() for s in queries.split(',')]
+#             queries = [StockQuery(symbol=symbol) for symbol in symbol_list]
         
-        # Call method with conditional parameters
-        if default_filtering is not None:
-            result = client.stock_conid_by_symbol(
-                queries=queries,
-                default_filtering=default_filtering,
-                return_type=return_type
-            )
-        else:
-            result = client.stock_conid_by_symbol(
-                queries=queries,
-                return_type=return_type
-            )
+#         # Call method with conditional parameters
+#         if default_filtering is not None:
+#             result = client.stock_conid_by_symbol(
+#                 queries=queries,
+#                 default_filtering=default_filtering,
+#                 return_type=return_type
+#             )
+#         else:
+#             result = client.stock_conid_by_symbol(
+#                 queries=queries,
+#                 return_type=return_type
+#             )
         
-        data = extract_result_data(result)
+#         data = extract_result_data(result)
         
-        if not data:
-            return to_json({
-                "error": "No conids found for the given symbols",
-                "queries": str(queries),
-                "default_filtering": default_filtering
-            })
+#         if not data:
+#             return to_json({
+#                 "error": "No conids found for the given symbols",
+#                 "queries": str(queries),
+#                 "default_filtering": default_filtering
+#             })
         
-        return to_json({"conids": data, "return_type": return_type})
+#         return to_json({"conids": data, "return_type": return_type})
     
-    except Exception as e:
-        return to_json({
-            "error": "Conid resolution failed",
-            "exception": str(e),
-            "queries": str(queries)
-        })
+#     except Exception as e:
+#         return to_json({
+#             "error": "Conid resolution failed",
+#             "exception": str(e),
+#             "queries": str(queries)
+#         })
 
 
 # ============================================================================
@@ -1142,7 +1142,166 @@ async def receive_brokerage_accounts() -> str:
 
 
 # ============================================================================
-# TOOL 17: Search Dynamic Accounts
+# TOOL 17: Find Contract by StockQuery (Unified Contract Lookup for LLM Clients)
+# ============================================================================
+
+@server.tool()
+async def find_contract(
+    query: str,
+    name_match: Optional[str] = None,
+    contract_conditions: Optional[dict] = None,
+    return_conid_only: bool = True
+) -> str:
+    """
+    Unified contract(tradeable instruments) lookup tool for LLM clients using StockQuery pattern.
+    
+    This is the recommended method for LLM clients to find contracts and their conids.
+    It provides a simple, consistent interface for all contract lookup needs.
+    
+    Args:
+        query: Stock symbol or company name to search for.
+               Examples: "AAPL", "Apple", "MSFT"
+        
+        name_match: Optional partial name match for company names.
+                   Example: "Micro" for "Microsoft"
+        
+        contract_conditions: Optional dictionary of contract filtering conditions.
+                            Common conditions:
+                            - "isUS": True/False - US-listed contracts only
+                            - "exchange": "NASDAQ"/"NYSE" - Specific exchange
+                            - "currency": "USD" - Trading currency
+                            - "assetClass": "STK" - Asset class
+                            Example: {"isUS": True, "exchange": "NASDAQ"}
+        
+        return_conid_only: If True, returns only the conid(s).
+                          If False, returns full contract information.
+                          Default: True (recommended for conid lookup)
+    
+    Returns:
+        JSON with conid(s) or full contract information.
+    
+    Examples:
+        # Simple symbol lookup (returns conid)
+        find_contract("AAPL")
+        
+        # Company name lookup with partial match
+        find_contract("Apple", name_match="Apple Inc")
+        
+        # Filter for US contracts on NASDAQ
+        find_contract("AAPL", contract_conditions={"isUS": True, "exchange": "NASDAQ"})
+        
+        # Get full contract information instead of just conid
+        find_contract("AAPL", return_conid_only=False)
+        
+        # Multiple symbols (comma-separated)
+        find_contract("AAPL,MSFT,GOOGL")
+    """
+    try:
+        client = get_client()
+        if client is None:
+            return to_json({
+                "error": "IBKR client not initialized",
+                "suggestion": "Check credentials and internet connection"
+            })
+        
+        from ibind.client.ibkr_utils import StockQuery
+        
+        # Handle multiple symbols (comma-separated)
+        if ',' in query:
+            symbols = [s.strip() for s in query.split(',')]
+            stock_queries = []
+            for symbol in symbols:
+                stock_query = StockQuery(
+                    symbol=symbol,
+                    name_match=name_match,
+                    contract_conditions=contract_conditions
+                )
+                stock_queries.append(stock_query)
+            
+            # Use stock_conid_by_symbol for multiple symbols
+            result = client.stock_conid_by_symbol(
+                queries=stock_queries,
+                return_type="dict"
+            )
+            data = extract_result_data(result)
+            
+            if not data:
+                return to_json({
+                    "error": "No contracts found for the given symbols",
+                    "query": query,
+                    "name_match": name_match,
+                    "contract_conditions": contract_conditions
+                })
+            
+            if return_conid_only:
+                return to_json({"conids": data})
+            else:
+                # Get full information for each conid
+                conids = list(data.values()) if isinstance(data, dict) else data
+                conid_str = ','.join(str(c) for c in conids)
+                return await security_definition(conid_str)
+        
+        else:
+            # Single symbol - use StockQuery
+            stock_query = StockQuery(
+                symbol=query,
+                name_match=name_match,
+                contract_conditions=contract_conditions
+            )
+            
+            if return_conid_only:
+                # Get conid using stock_conid_by_symbol
+                result = client.stock_conid_by_symbol(
+                    queries=[stock_query],
+                    return_type="dict"
+                )
+                data = extract_result_data(result)
+                
+                if not data or query not in data:
+                    return to_json({
+                        "error": "No contract found for the given query",
+                        "query": query,
+                        "name_match": name_match,
+                        "contract_conditions": contract_conditions,
+                        "suggestion": "Try without filters or check symbol/name"
+                    })
+                
+                conid = data[query]
+                return to_json({
+                    "conid": conid,
+                    "symbol": query,
+                    "name_match": name_match,
+                    "contract_conditions": contract_conditions
+                })
+            
+            else:
+                # Get full contract information using security_stocks_by_symbol
+                result = client.security_stocks_by_symbol(queries=[stock_query])
+                data = extract_result_data(result)
+                
+                if not data:
+                    return to_json({
+                        "error": "No contract information found",
+                        "query": query,
+                        "name_match": name_match,
+                        "contract_conditions": contract_conditions
+                    })
+                
+                return to_json({"contract": data})
+    
+    except Exception as e:
+        return to_json({
+            "error": "Contract lookup failed",
+            "exception": str(e),
+            "query": query,
+            "name_match": name_match,
+            "contract_conditions": contract_conditions,
+            "suggestion": "Check the query format and filtering conditions"
+        })
+
+
+# ============================================================================
+# TOOL 18: Search Dynamic Accounts
 # ============================================================================
 
 @server.tool()
@@ -1195,7 +1354,7 @@ async def search_dynamic_account(search_pattern: str) -> str:
 
 
 # ============================================================================
-# TOOL 18: Get Trading Schedule by Symbol and Exchange
+# TOOL 19: Get Trading Schedule by Symbol and Exchange
 # ============================================================================
 
 @server.tool()
@@ -1267,7 +1426,7 @@ async def trading_schedule(
 @server.tool()
 async def live_marketdata_snapshot(
     conid: str,
-    fields: Optional[str] = None
+    fields: Optional[Union[str, List[int], List[str]]] = None
 ) -> str:
     """
     Get live market data snapshot for a contract.
@@ -1278,25 +1437,42 @@ async def live_marketdata_snapshot(
     
     Args:
         conid: Contract ID (e.g., "265598" for AAPL)
-        fields: Comma-separated field IDs to retrieve. Common fields:
+        fields: Field IDs to retrieve. Can be:
+                - Comma-separated string: "31,69,70"
+                - List of integers: [31, 69, 70]
+                - List of strings: ["31", "69", "70"]
+                - None: returns default fields (31, 69, 70)
+                
+                Common field IDs:
                 31=Last Price, 66=Bid Size, 68=Ask Size, 69=Bid, 70=Ask,
                 84=Mark Price, 85=Bid/Ask Change, 86=Mark Change
-                If None, returns all available fields.
     
     Returns:
         JSON with current market data snapshot or error dict.
     
     Examples:
+        # String format (comma-separated)
         live_marketdata_snapshot("265598")
         live_marketdata_snapshot("265598", fields="69,70,31")  # Bid, Ask, Last Price
+        live_marketdata_snapshot("265598", fields="31")  # Just Last Price
+        
+        # Array format (LLM-friendly)
+        live_marketdata_snapshot("265598", fields=[31, 69, 70, 84, 85, 86])
+        live_marketdata_snapshot("265598", fields=["31", "69", "70"])
     """
     import time
     
     max_attempts = 10
     
-    # Prepare field list
+    # Prepare field list - convert to list[str] for fetch_raw_market_data
     if fields is not None:
-        field_list = [str(f.strip()) for f in fields.split(',')]
+        if isinstance(fields, str):
+            # Comma-separated string: "31,69,70"
+            field_list = [str(f.strip()) for f in fields.split(',')]
+        else:
+            # Must be a list (Union[str, List[int], List[str]] ensures this)
+            # List of integers or strings: [31, 69, 70] or ["31", "69", "70"]
+            field_list = [str(f) for f in fields]  # type: ignore[arg-type]
     else:
         field_list = ['31', '69', '70']  # Default: Last Price, Bid, Ask
     
@@ -1316,7 +1492,8 @@ async def live_marketdata_snapshot(
             return to_json({
                 "error": "No market data available after retries",
                 "conid": conid,
-                "attempts": max_attempts
+                "attempts": max_attempts,
+                "fields": fields
             })
         
         except Exception as e:
@@ -1328,13 +1505,15 @@ async def live_marketdata_snapshot(
                 "error": "Live market data snapshot failed",
                 "exception": str(e),
                 "conid": conid,
-                "attempts": max_attempts
+                "attempts": max_attempts,
+                "fields": fields
             })
     
     return to_json({
         "error": "Live market data snapshot failed after maximum retries",
         "conid": conid,
-        "max_attempts": max_attempts
+        "max_attempts": max_attempts,
+        "fields": fields
     })
 
 
@@ -1879,59 +2058,72 @@ async def list_tools() -> str:
     """
     return """# IBKR Complete MCP Tools - Contract & Market Data Reference
 
-## Available Tools (29 total)
+## Available Tools (30 total)
 
-### Search & Lookup Tools (9)
+### Search & Lookup Tools (10)
 
-**1. search_contract(symbol, search_by_name=None, security_type=None)**
+**1. find_contract(query, name_match=None, contract_conditions=None, return_conid_only=True)**
+**🎯 RECOMMENDED FOR LLM CLIENTS** - Unified contract lookup using StockQuery pattern.
+- Parameters: query (symbol or name), name_match (partial name), contract_conditions (dict), return_conid_only (bool)
+- Returns: Conid(s) or full contract information
+- Examples: 
+  - find_contract("AAPL") → Returns conid
+  - find_contract("Apple", name_match="Apple Inc") → Company name lookup
+  - find_contract("AAPL,MSFT,GOOGL") → Multiple symbols
+  - find_contract("AAPL", contract_conditions={"isUS": True, "exchange": "NASDAQ"}) → Filtered lookup
+  - find_contract("AAPL", return_conid_only=False) → Full contract info
+
+**2. search_contract(symbol, search_by_name=None, security_type=None)**
 Search for contracts by ticker symbol, company name, or bond issuer.
 - Parameters: symbol (str), search_by_name (bool), security_type (str)
 - Returns: List of matching contracts
 - Examples: search_contract("AAPL"), search_contract("Apple", search_by_name=True)
 
-**2. security_definition(conids)**
+**3. security_definition(conids)**
 Get security definitions for given contract IDs.
 - Parameters: conids (comma-separated or single)
 - Returns: Security definitions for each conid
 - Examples: security_definition("265598"), security_definition("265598,9408,12345")
 
-**3. all_exchange_contracts(exchange)**
+**4. all_exchange_contracts(exchange)**
 Get all tradable contracts on a specific exchange (stocks only).
 - Parameters: exchange (str)
 - Returns: List of all contract IDs on exchange
 - Examples: all_exchange_contracts("NASDAQ"), all_exchange_contracts("NYSE")
 
-**4. contract_information(conid)**
+**5. contract_information(conid)**
 Get full contract details for a specific contract ID.
 - Parameters: conid (str)
 - Returns: Complete contract information
 - Examples: contract_information("265598"), contract_information("9408")
 
-**5. currency_pairs(currency)**
+**6. currency_pairs(currency)**
 Get available currency pairs for a target currency.
 - Parameters: currency (str, e.g., "USD")
 - Returns: Available currency pairs
 - Examples: currency_pairs("USD"), currency_pairs("EUR")
 
-**6. security_futures(symbols)**
+**7. security_futures(symbols)**
 Get non-expired future contracts for given symbol(s).
 - Parameters: symbols (comma-separated or single)
 - Returns: Available futures contracts
 - Examples: security_futures("ES"), security_futures("ES,NQ,GC")
 
-**7. security_stocks(queries, default_filtering=None)**
+**8. security_stocks(queries, default_filtering=None)**
 Get stock information for given symbols with advanced filtering.
 - Parameters: queries (StockQueries or comma-separated string), default_filtering (bool)
 - Returns: Stock information with precise filtering
 - Examples: security_stocks("AAPL"), security_stocks("AAPL,MSFT,GOOGL")
+- **Note:** For LLM clients, use `find_contract(query, return_conid_only=False)`
 
-**8. stock_conid_by_symbol(queries, default_filtering=None, return_type="dict")**
-Get unambiguous contract IDs (conids) for stock symbols. **CRITICAL FOR CONID RESOLUTION**
+**9. stock_conid_by_symbol(queries, default_filtering=None, return_type="dict")**
+Get unambiguous contract IDs (conids) for stock symbols.
 - Parameters: queries (StockQueries or comma-separated string), default_filtering (bool), return_type ("dict" or "list")
 - Returns: {symbol: conid} mapping or list of conids
 - Examples: stock_conid_by_symbol("AAPL"), stock_conid_by_symbol("AAPL,MSFT,GOOGL", return_type="list")
+- **Note:** For LLM clients, use `find_contract(query)` instead
 
-**9. receive_brokerage_accounts()**
+**10. receive_brokerage_accounts()**
 Get list of brokerage accounts available for trading. **PREREQUISITE FOR ACCOUNT OPERATIONS**
 - Parameters: None
 - Returns: Account list with aliases and current selection
@@ -2185,8 +2377,8 @@ if __name__ == "__main__":
     print("\n" + "="*80)
     print("IBKR Complete MCP Server - Contract & Market Data Implementation")
     print("="*80)
-    print("\n✅ 29 MCP tools loaded:")
-    print("   Search & Lookup (9):")
+    print("\n✅ 30 MCP tools loaded:")
+    print("   Search & Lookup (10):")
     print("     1. search_contract() - Search by symbol/name/issuer")
     print("     2. security_definition() - Security definitions by conids")
     print("     3. all_exchange_contracts() - All contracts on exchange")
@@ -2196,34 +2388,35 @@ if __name__ == "__main__":
     print("     7. security_stocks() - Stock information by queries")
     print("     8. stock_conid_by_symbol() - Unambiguous conid resolution")
     print("     9. receive_brokerage_accounts() - Account initialization")
+    print("    10. find_contract() - Unified contract lookup for LLM clients")
     print("\n   Contract Details (3):")
-    print("    10. get_contract_details() - Derivative specifications")
-    print("    11. get_option_strikes() - Available option/warrant strikes")
-    print("    12. trading_schedule() - Trading hours by symbol/exchange")
+    print("    11. get_contract_details() - Derivative specifications")
+    print("    12. get_option_strikes() - Available option/warrant strikes")
+    print("    13. trading_schedule() - Trading hours by symbol/exchange")
     print("\n   Trading Rules & Info (3):")
-    print("    13. get_trading_rules() - Trading constraints for a contract")
-    print("    14. contract_info_and_rules() - Combined contract info + rules")
-    print("    15. currency_exchange_rate() - Exchange rates between currencies")
+    print("    14. get_trading_rules() - Trading constraints for a contract")
+    print("    15. contract_info_and_rules() - Combined contract info + rules")
+    print("    16. currency_exchange_rate() - Exchange rates between currencies")
     print("\n   Bond & Algorithm Tools (2):")
-    print("    16. get_bond_filters() - Bond issuer filtering options")
-    print("    17. algo_params() - IB Algo parameters for a contract")
+    print("    17. get_bond_filters() - Bond issuer filtering options")
+    print("    18. algo_params() - IB Algo parameters for a contract")
     print("\n   Live Market Data (2):")
-    print("    18. live_marketdata_snapshot() - Current bid/ask/last price by conid")
-    print("    19. live_marketdata_snapshot_by_symbol() - Current market data by symbol")
+    print("    19. live_marketdata_snapshot() - Current bid/ask/last price by conid")
+    print("    20. live_marketdata_snapshot_by_symbol() - Current market data by symbol")
     print("\n   Historical Market Data (5):")
-    print("    20. marketdata_history_by_conid() - OHLC historical data by conid")
-    print("    21. marketdata_history_by_symbol() - OHLC historical data by symbol")
-    print("    22. marketdata_history_by_conids() - Batch OHLC by conids (parallel)")
-    print("    23. marketdata_history_by_symbols() - Batch OHLC by symbols (parallel)")
-    print("    24. historical_marketdata_beta() - Advanced OHLC with custom time range")
+    print("    21. marketdata_history_by_conid() - OHLC historical data by conid")
+    print("    22. marketdata_history_by_symbol() - OHLC historical data by symbol")
+    print("    23. marketdata_history_by_conids() - Batch OHLC by conids (parallel)")
+    print("    24. marketdata_history_by_symbols() - Batch OHLC by symbols (parallel)")
+    print("    25. historical_marketdata_beta() - Advanced OHLC with custom time range")
     print("\n   Regulatory & Subscriptions (3):")
-    print("    25. regulatory_snapshot() - Regulatory market data (costs $0.01 USD)")
-    print("    26. marketdata_unsubscribe() - Cancel market data subscription for a contract")
-    print("    27. marketdata_unsubscribe_all() - Cancel all market data subscriptions")
+    print("    26. regulatory_snapshot() - Regulatory market data (costs $0.01 USD)")
+    print("    27. marketdata_unsubscribe() - Cancel market data subscription for a contract")
+    print("    28. marketdata_unsubscribe_all() - Cancel all market data subscriptions")
     print("\n   Account Management (1):")
-    print("    28. search_dynamic_account() - Search for dynamic accounts")
+    print("    29. search_dynamic_account() - Search for dynamic accounts")
     print("\n   Utility (1):")
-    print("    29. list_tools() - Show documentation with all tools")
+    print("    30. list_tools() - Show documentation with all tools")
     
     client = get_client()
     if client:
