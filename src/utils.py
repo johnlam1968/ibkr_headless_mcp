@@ -11,6 +11,7 @@ Each call fetches fresh data (no caching for real-time MCP server).
 import json
 import time
 from typing import Any, Dict, Optional, List
+from ibind.support.py_utils import OneOrMany
 
 from ibind import IbkrClient
 from ibind.client.ibkr_definitions import snapshot_by_id
@@ -211,13 +212,13 @@ def extract_result_data(result: Result) -> Any:
     # if result.data is not None:
     return result.data
 
-def fetch_raw_market_data(conid: str, fields: list[str]) -> Optional[Dict[str, Any]]:
+def fetch_raw_market_data(conids: OneOrMany[str], fields: list[str]) -> Optional[Dict[str, Any]]:
     """Fetch raw market data snapshot from IBKR API.s
 
     Internal helper. Applies field ID mapping but minimal processing.
 
     Args:
-        conid: Contract ID
+        conids: Contract ID
         fields: List of field IDs to retrieve (or single string that will be converted to list)
 
     Returns:
@@ -234,7 +235,7 @@ def fetch_raw_market_data(conid: str, fields: list[str]) -> Optional[Dict[str, A
         field_list = fields
 
     # Type ignore because field_list is List[str] which should be compatible with OneOrMany[str]
-    response = client.live_marketdata_snapshot(conids=conid, fields=field_list)  # type: ignore[arg-type]
+    response = client.live_marketdata_snapshot(conids=conids, fields=field_list)  # type: ignore[arg-type]
     entries = extract_result_data(response)
 
     if not entries:

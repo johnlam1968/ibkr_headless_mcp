@@ -23,3 +23,6 @@ IBIND_OAUTH1A_SIGNATURE_KEY_FP="path-to/private_signature.pem"
 IBIND_OAUTH1A_ACCESS_TOKEN=""
 IBIND_OAUTH1A_ACCESS_TOKEN_SECRET=""
 IBIND_OAUTH1A_DH_PRIME='prime_hex'
+
+## Reference
+https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#endpoints

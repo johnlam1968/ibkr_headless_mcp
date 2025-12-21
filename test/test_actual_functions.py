@@ -65,7 +65,7 @@ async def test_search_contract():
     """Test the search_contract function"""
     print("\nTesting search_contract()...")
     try:
-        tool = mcp_server.search_contract
+        tool = mcp_server.search_underlier
         
         if hasattr(tool, 'fn'):
             func = tool.fn
@@ -124,7 +124,7 @@ async def test_multiple_functions():
     
     test_cases = [
         ("list_tools", mcp_server.list_tools, []),
-        ("search_contract", mcp_server.search_contract, ["AAPL"]),
+        ("search_contract", mcp_server.search_underlier, ["AAPL"]),
         ("security_definition", mcp_server.security_definition, ["265598"]),
         ("contract_information", mcp_server.contract_information, ["265598"]),
     ]

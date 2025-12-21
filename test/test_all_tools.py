@@ -61,16 +61,16 @@ async def test_all_tools():
     # Define test cases for all tools
     test_cases = [
         # Search & Lookup Tools (7)
-        ("search_contract", mcp_server.search_contract, ["AAPL"]),
+        ("search_contract", mcp_server.search_underlier, ["AAPL"]),
         ("security_definition", mcp_server.security_definition, ["265598"]),
         ("all_exchange_contracts", mcp_server.all_exchange_contracts, ["NASDAQ"]),
         ("contract_information", mcp_server.contract_information, ["265598"]),
         ("currency_pairs", mcp_server.currency_pairs, ["USD"]),
-        ("security_futures", mcp_server.security_futures, ["ES"]),
+        ("security_futures", mcp_server.search_futures, ["ES"]),
         ("security_stocks", mcp_server.security_stocks, ["AAPL"]),
         
         # Contract Details Tools (3)
-        ("get_contract_details", mcp_server.get_contract_details, ["265598", "OPT", "JAN25", None, "150", "C"]),
+        ("get_contract_details", mcp_server.get_derivative_contract_details, ["265598", "OPT", "JAN25", None, "150", "C"]),
         ("get_option_strikes", mcp_server.get_option_strikes, ["265598", "OPT", "JAN25"]),
         ("trading_schedule", mcp_server.trading_schedule, ["STK", "AAPL"]),
         

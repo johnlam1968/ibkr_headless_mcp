@@ -79,12 +79,12 @@ async def run_all_tests():
     # Get the actual functions from the mcp_server module
     tests = [
         # Search & Lookup Tools (7)
-        ("search_contract (AAPL)", mcp_server.search_contract, test_symbol),
+        ("search_contract (AAPL)", mcp_server.search_underlier, test_symbol),
         ("security_definition (AAPL)", mcp_server.security_definition, test_conid),
         ("all_exchange_contracts (NASDAQ)", mcp_server.all_exchange_contracts, test_exchange),
         ("contract_information (AAPL)", mcp_server.contract_information, test_conid),
         ("currency_pairs (USD)", mcp_server.currency_pairs, test_currency),
-        ("security_futures (ES)", mcp_server.security_futures, "ES"),
+        ("security_futures (ES)", mcp_server.search_futures, "ES"),
         ("security_stocks (AAPL)", mcp_server.security_stocks, test_symbol),
         
         # Contract Details Tools (3)
