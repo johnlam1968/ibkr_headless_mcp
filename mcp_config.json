@@ -3,7 +3,7 @@
     "ibkr-contract-search": {
       "command": "/home/john/CodingProjects/llm/.venv/bin/python",
       "args": [
-        "/home/john/CodingProjects/llm_public/src/mcp_server.py"
+        "/home/john/CodingProjects/llm_public/src/endpoint_server.py"
       ],
       "env": {
         "PYTHONPATH": "/home/john/CodingProjects/llm_public/src"
