@@ -955,16 +955,17 @@ async def get_bond_filters(bond_issuer_id: str) -> str:
         })
 
 @mcp_tool
-async def call_endpoint(path: str, params: Dict[str, Any]) -> str:
+async def call_endpoint(path: str, params: Optional[Dict[str, Any]]) -> str:
     """
     Call a specific endpoint with given parameters.
+    This utilize ibind's rest_client method to make API calls to IBKR end points.
     
     Args:
         path: The API endpoint path, e.g.:
             "iserver/account"
             "iserver/secdef/search"
             "iserver/secdef/info"
-            "/iserver/contract"
+            "iserver/contract"
             "iserver/secdef/bond-filters"
             "trsrv/secdef"
             "trsrv/futures"
@@ -976,14 +977,40 @@ async def call_endpoint(path: str, params: Dict[str, Any]) -> str:
 
     Returns:
         JSON with the result of the endpoint call or error dict.
+    Examples:
+        call_endpoint(path='iserver/secdef/search', params={"symbol":"US-T", "sectype":"BOND"})
+        Valid Values: “STK”, “IND”, “BOND”
+        "STK" for Stocks, "IND" for Indices, "BOND" for Bonds.
+        call_endpoint('iserver/secdef/search', params={"symbol":"SPY", "sectype":"STK")
+        call_endpoint('iserver/secdef/search', params={"symbol":"SPX", "sectype":"IND")
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#search-symbol-contract
+
+        call_endpoint(path='iserver/secdef/info', params={"conid":"265598"})
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#secdef-info-contract
+        
+        call_endpoint(path=f'iserver/contract/265598/info')
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#info-conid-contract
+
+        call_endpoint(path='iserver/accounts')
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#get-accounts
+        from the response, parse for accountId and use in subsequent calls.
+
+        call_endpoint(path=f'iserver/account/{{ accountId }}/alerts')
+        accountId has Value Format: “DU1234567”
+        call_endpoint(path=f'iserver/account/{{ “DU1234567” }}/alerts')
+
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#get-alert-list
+        
     """
-    _result = _call_endpoint(path, params)
+    if params:
+        _result = _call_endpoint(path, params)
+    else:
+        _result = _call_endpoint(path, {})
     return to_json(_result.data) # type: ignore
 
 def _call_endpoint(path: str, params: Dict[str, Any]) -> Result:
 
     client = get_client()
-    # result = client.get('/iserver/secdef/info',{"conid":"-1", "sectype":"BOND", "issuerId":issuerId}).data
     return client.get(path=path, params=params) # type: ignore
 
 @mcp_tool

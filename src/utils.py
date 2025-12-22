@@ -182,7 +182,7 @@ def iterate_to_fetch_market_data(conids: List[str], fields: List[str], max_attem
 
 def get_client() -> Optional[IbkrClient]:
     """
-    Get or initialize the IBKR client (lazy-loaded on first use).
+    Get or initialize the ibind client (lazy-loaded on first use).
 
     Returns None if connection fails, allowing imports to succeed.
     Subsequent calls reuse the same authenticated connection.
