@@ -1,4 +1,4 @@
-# A no-code IBKR Headless MCP Server
+# A IBKR Headless MCP Server with little codes
 
 This project provides an MCP (Model Context Protocol) server and tools for Interactive Brokers (IBKR) via ibind library.
 
@@ -6,7 +6,9 @@ Using ibind's oauth feature, this headless application runs independent of a IBK
 
 ## Features
 
-Instead of wrapping on ibind's method, now an endpoint mcp server is available: a LLM agent parses the documentation and uses the get method to retrieve information for an end user. From a software development perspective, writing hard codes to call API will eventually become largely redundant because AI could figure it out in runtime. The documentation of the API itself is the code.
+Minimal codes: a LLM agent parses the documentation and uses the get method to retrieve information for an end user interactively. 
+
+Writing hard codes to call API will eventually become largely redundant because AI could figure it out in runtime. The target API documentation per se is the code.
 
 ## Prerequisites
 1. **IBKR Account**: Paper/live trading account with API access enabled.
