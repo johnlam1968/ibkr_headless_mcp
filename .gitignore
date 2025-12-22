@@ -1,6 +1,10 @@
 .env
 .venv/
+.vscode/
 __pycache__/
+maybe/
+agent_generated/
+test/
 *.pyc
 *.pyo
 *.pyd

@@ -8,6 +8,8 @@ import asyncio
 import json
 from pathlib import Path
 
+import maybe.unexposed as unexposed
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
@@ -62,8 +64,8 @@ async def test_all_tools():
     test_cases = [
         # Search & Lookup Tools (7)
         ("search_contract", mcp_server.search_underlier, ["AAPL"]),
-        ("security_definition", mcp_server.security_definition, ["265598"]),
-        ("all_exchange_contracts", mcp_server.all_exchange_contracts, ["NASDAQ"]),
+        ("security_definition", mcp_server.instrument_definition, ["265598"]),
+        ("all_exchange_contracts", unexposed.all_exchange_contracts, ["NASDAQ"]),
         ("contract_information", mcp_server.contract_information, ["265598"]),
         ("currency_pairs", mcp_server.currency_pairs, ["USD"]),
         ("security_futures", mcp_server.search_futures, ["ES"]),
@@ -72,32 +74,32 @@ async def test_all_tools():
         # Contract Details Tools (3)
         ("get_contract_details", mcp_server.get_derivative_contract_details, ["265598", "OPT", "JAN25", None, "150", "C"]),
         ("get_option_strikes", mcp_server.get_option_strikes, ["265598", "OPT", "JAN25"]),
-        ("trading_schedule", mcp_server.trading_schedule, ["STK", "AAPL"]),
+        ("trading_schedule", unexposed.trading_schedule, ["STK", "AAPL"]),
         
         # Trading Rules & Info Tools (3)
-        ("get_trading_rules", mcp_server.get_trading_rules, ["265598"]),
+        ("get_trading_rules", unexposed.get_trading_rules, ["265598"]),
         ("contract_info_and_rules", mcp_server.contract_info_and_rules, ["265598"]),
         ("currency_exchange_rate", mcp_server.currency_exchange_rate, ["USD", "EUR"]),
         
         # Bond & Algorithm Tools (2)
         ("get_bond_filters", mcp_server.get_bond_filters, ["e1359061"]),
-        ("algo_params", mcp_server.algo_params, ["265598"]),
+        ("algo_params", unexposed.algo_params, ["265598"]),
         
         # Live Market Data Tools (2)
         ("live_marketdata_snapshot", mcp_server.live_marketdata_snapshot, ["265598"]),
-        ("live_marketdata_snapshot_by_symbol", mcp_server.live_marketdata_snapshot_by_queries, ["AAPL"]),
+        ("live_marketdata_snapshot_by_symbol", unexposed.live_marketdata_snapshot_by_queries, ["AAPL"]),
         
         # Historical Market Data Tools (5)
         ("marketdata_history_by_conid", mcp_server.marketdata_history_by_conid, ["265598", "1d"]),
-        ("marketdata_history_by_symbol", mcp_server.marketdata_history_by_symbol, ["AAPL", "1d"]),
-        ("marketdata_history_by_conids", mcp_server.marketdata_history_by_conids, ["265598", "1d"]),
-        ("marketdata_history_by_symbols", mcp_server.marketdata_history_by_symbols, ["AAPL", "1d"]),
+        ("marketdata_history_by_symbol", unexposed.marketdata_history_by_symbol, ["AAPL", "1d"]),
+        ("marketdata_history_by_conids", unexposed.marketdata_history_by_conids, ["265598", "1d"]),
+        ("marketdata_history_by_symbols", unexposed.marketdata_history_by_symbols, ["AAPL", "1d"]),
         ("historical_marketdata_beta", mcp_server.historical_marketdata_beta, ["265598", "2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z"]),
         
         # Regulatory & Subscriptions Tools (3)
-        ("regulatory_snapshot", mcp_server.regulatory_snapshot, ["265598"]),
-        ("marketdata_unsubscribe", mcp_server.marketdata_unsubscribe, ["265598"]),
-        ("marketdata_unsubscribe_all", mcp_server.marketdata_unsubscribe_all, []),
+        ("regulatory_snapshot", unexposed.regulatory_snapshot, ["265598"]),
+        ("marketdata_unsubscribe", unexposed.marketdata_unsubscribe, ["265598"]),
+        ("marketdata_unsubscribe_all", unexposed.marketdata_unsubscribe_all, []),
         
         # Utility (1)
         ("list_tools", mcp_server.list_tools, []),

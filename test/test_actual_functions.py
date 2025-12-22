@@ -125,7 +125,7 @@ async def test_multiple_functions():
     test_cases = [
         ("list_tools", mcp_server.list_tools, []),
         ("search_contract", mcp_server.search_underlier, ["AAPL"]),
-        ("security_definition", mcp_server.security_definition, ["265598"]),
+        ("security_definition", mcp_server.instrument_definition, ["265598"]),
         ("contract_information", mcp_server.contract_information, ["265598"]),
     ]
     

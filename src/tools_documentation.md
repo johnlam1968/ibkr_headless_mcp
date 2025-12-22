@@ -1,6 +1,6 @@
 # IBKR Complete MCP Tools - Contract & Market Data Reference
 
-## Available Tools (27 total)
+## Available Tools (22 total)
 
 ### Search & Lookup Tools (8)
 
@@ -78,23 +78,15 @@ Get trading schedule (hours) for a contract.
 
 ---
 
-### Trading Rules & Info Tools (3)
+### Trading Rules & Info Tools (2)
 
-**12. get_trading_rules(conid, exchange=None, is_buy=None, modify_order=None, order_id=None)**
-Get trading constraints and rules for a contract.
-- Parameters: conid, exchange, is_buy (True/False), modify_order, order_id (required if modify_order=True)
-- Returns: Position limits, minimums, constraints
-- Examples:
-  - get_trading_rules("265598")
-  - get_trading_rules("265598", modify_order=True, order_id=12345)
-
-**13. contract_info_and_rules(conid, is_buy=None)**
+**12. contract_info_and_rules(conid, is_buy=None)**
 Get both contract info and trading rules in one request.
 - Parameters: conid, is_buy (True/False)
 - Returns: Combined contract info and rules
 - Examples: contract_info_and_rules("265598"), contract_info_and_rules("265598", is_buy=True)
 
-**14. currency_exchange_rate(source, target)**
+**13. currency_exchange_rate(source, target)**
 Get the exchange rate between two currencies.
 - Parameters: source (str), target (str)
 - Returns: Exchange rate information
@@ -104,7 +96,7 @@ Get the exchange rate between two currencies.
 
 ### Bond Tools (1)
 
-**15. get_bond_filters(bond_issuer_id)**
+**14. get_bond_filters(bond_issuer_id)**
 Get available filters for a bond issuer.
 - Parameters: bond_issuer_id (e.g., "e123456")
 - Returns: Available bond filters (maturity, rating, yield, etc.)
@@ -112,15 +104,9 @@ Get available filters for a bond issuer.
 
 ---
 
-### Account Management Tools (2)
+### Account Management Tools (1)
 
-**16. search_dynamic_account(search_pattern)**
-Search for broker accounts configured with DYNACCT (Dynamic Account) property.
-- Parameters: search_pattern (str, e.g., "DU" for paper accounts)
-- Returns: Matching dynamic accounts
-- Examples: search_dynamic_account("DU")
-
-**17. preflight_receive_brokerage_accounts()**
+**15. preflight_receive_brokerage_accounts()**
 Get list of brokerage accounts available for trading.
 - Parameters: None
 - Returns: Account list with aliases and current selection
@@ -130,7 +116,7 @@ Get list of brokerage accounts available for trading.
 
 ### Live Market Data Tools (2)
 
-**18. live_marketdata_snapshot(conid, fields=None)**
+**16. live_marketdata_snapshot(conid, fields=None)**
 Get live market data snapshot for a contract.
 - Parameters: conid (str), fields (comma-separated field IDs or list)
 - Returns: Current bid, ask, last price, and other market data
@@ -139,7 +125,7 @@ Get live market data snapshot for a contract.
   - live_marketdata_snapshot("265598", fields="69,70,31")  # Bid, Ask, Last Price
 - Common Field IDs: 31=Last Price, 66=Bid Size, 68=Ask Size, 69=Bid, 70=Ask, 84=Mark, 85=Bid/Ask Change
 
-**19. live_marketdata_snapshot_by_queries(queries, fields=None)**
+**17. live_marketdata_snapshot_by_queries(queries, fields=None)**
 Get live market data snapshot for contracts by queries.
 - Parameters: queries (StockQueries), fields (comma-separated field IDs)
 - Returns: Current market data snapshot for multiple contracts
@@ -147,33 +133,15 @@ Get live market data snapshot for contracts by queries.
 
 ---
 
-### Historical Market Data Tools (5)
+### Historical Market Data Tools (2)
 
-**20. marketdata_history_by_conid(conid, period, bar_size="1d", outside_rth=False)**
+**18. marketdata_history_by_conid(conid, period, bar_size="1d", outside_rth=False)**
 Get historical OHLC data for a contract by conid.
 - Parameters: conid (str), period (e.g., "1mo", "3mo", "1y", "all"), bar_size (default: "1d"), outside_rth (bool)
 - Returns: OHLC bars with volume and timestamps
 - Examples: marketdata_history_by_conid("265598", "1y"), marketdata_history_by_conid("265598", "3mo", "1h")
 
-**21. marketdata_history_by_symbol(symbol, period, bar_size="1d", outside_rth=False)**
-Get historical OHLC data for a contract by symbol.
-- Parameters: symbol (str), period (e.g., "1mo", "3mo", "1y", "all"), bar_size (default: "1d"), outside_rth (bool)
-- Returns: OHLC bars with volume and timestamps
-- Examples: marketdata_history_by_symbol("AAPL", "1y"), marketdata_history_by_symbol("ES", "3mo", "1h")
-
-**22. marketdata_history_by_conids(conids, period, bar_size="1d", outside_rth=False)**
-Get historical OHLC data for multiple contracts (batch, parallel processing).
-- Parameters: conids (comma-separated), period (e.g., "1mo", "3mo", "1y"), bar_size (default: "1d"), outside_rth (bool)
-- Returns: OHLC data for each conid
-- Examples: marketdata_history_by_conids("265598,9408", "1y"), marketdata_history_by_conids("265598,9408,12345", "1mo", "1h")
-
-**23. marketdata_history_by_symbols(symbols, period, bar_size="1d", outside_rth=False)**
-Get historical OHLC data for multiple contracts by symbols (batch, parallel processing).
-- Parameters: symbols (comma-separated), period (e.g., "1mo", "3mo", "1y"), bar_size (default: "1d"), outside_rth (bool)
-- Returns: OHLC data for each symbol
-- Examples: marketdata_history_by_symbols("AAPL,MSFT", "1y"), marketdata_history_by_symbols("ES,NQ,GC", "1mo", "1h")
-
-**24. historical_marketdata_beta(conid, start_time, end_time, bar_size="1min")**
+**19. historical_marketdata_beta(conid, start_time, end_time, bar_size="1min")**
 Get advanced historical OHLC data with custom time range (beta).
 - Parameters: conid (str), start_time (ISO 8601 or Unix timestamp), end_time (ISO 8601 or Unix timestamp), bar_size (default: "1min")
 - Returns: Detailed OHLC bars for the specified time range
@@ -183,38 +151,15 @@ Get advanced historical OHLC data with custom time range (beta).
 
 ---
 
-### Regulatory & Subscriptions Tools (3)
-
-**25. regulatory_snapshot(conid)**
-Get regulatory market data snapshot for a contract.
-- Parameters: conid (str)
-- Returns: Regulatory-compliant market data snapshot
-- ⚠️  WARNING: Costs $0.01 USD per call (applies to paper and live accounts)
-- Examples: regulatory_snapshot("265598")
-
-**26. marketdata_unsubscribe(conid)**
-Unsubscribe from market data for a specific contract.
-- Parameters: conid (str)
-- Returns: Subscription cancellation status
-- Examples: marketdata_unsubscribe("265598")
-
-**27. marketdata_unsubscribe_all()**
-Unsubscribe from all market data subscriptions.
-- Parameters: None
-- Returns: All subscriptions cancelled status
-- Examples: marketdata_unsubscribe_all()
-
----
-
 ### Utility
 
-**28. list_tools()**
+**20. list_tools()**
 Show this documentation with all tools and parameters.
 
-**29. fields_definitions_to_keys()**
+**21. fields_definitions_to_keys()**
 Definitions of fields for marketdata snapshot.
 
-**30. numeric_key_to_field_definitions()**
+**22. numeric_key_to_field_definitions()**
 Definitions of fields for marketdata snapshot.
 
 ---
@@ -223,7 +168,7 @@ Definitions of fields for marketdata snapshot.
 
 ### Workflow 1: Find Apple Stock Call Options
 ```
-1. search_unique_stocks_depth_first("AAPL")
+1. search_underlier("AAPL", False, "STK")
    → Extract conid (e.g., "265598")
 
 2. get_option_strikes("265598", "OPT", "JAN25")
@@ -231,33 +176,28 @@ Definitions of fields for marketdata snapshot.
 
 3. get_derivative_contract_details("265598", "OPT", "JAN25", strike="150", option_right="C")
    → Full specs: multiplier=100, tick_size=0.01, ...
-
-4. get_trading_rules("265598")
-   → Position limits: 500000, min_size: 1, ...
 ```
 
 ### Workflow 2: Research a Futures Contract
 ```
-1. search_futures("ES")
-   → Find E-mini S&P 500 futures
+1. search_underlier("ES", False, "IND")
+   → Find available ES futures
 
 2. get_derivative_contract_details(conid, "FUT", "JAN25")
    → Get specs: multiplier=50, tick_size=0.25, ...
-
-3. get_trading_rules(conid, is_buy=True)
-   → Check position limits
 ```
 
-### Workflow 3: Analyze Market Data
+### Workflow 3: Obtain Market Data
 ```
-1. live_marketdata_snapshot("265598", fields="31,69,70")
+1. Obtain conid:
+   search_underlier for non-stock, 
+   search_possible_stocks_breadth_first or search_unique_stocks_depth_first for stock, 
+   search_futures for futures if the symbol is known (such as "CL", "ES", "HSI")
+2. live_marketdata_snapshot(conids="265598", fields="31,69,70")
    → Get current bid, ask, last price for AAPL
 
-2. marketdata_history_by_conid("265598", "1mo", "1h")
+2. marketdata_history_by_conid(conid="265598", period="1mo", bar_size="1h")
    → Get hourly OHLC data for the past month
-
-3. marketdata_history_by_symbols("AAPL,MSFT,GOOGL", "1y", "1d")
-   → Compare daily performance of tech stocks over the past year
 ```
 
 ### Workflow 4: Currency Analysis
@@ -274,27 +214,17 @@ Definitions of fields for marketdata snapshot.
 
 ### Workflow 5: Bond Research
 ```
-1. preflight_underlying_search_for_finding_derivatives("US Treasury", underlying_security_type="BOND")
+1. search_underlier(symbol="US-T", search_by_name=False, underlying_security_type="BOND")
    → Find bond issuer ID for US Treasury
 
 2. get_bond_filters("e1359061")
    → Get available filters for US Treasury bonds
 
-3. get_derivative_contract_details(conid, "BOND", "JAN25", bond_issuer_id="e1359061")
+3. get_derivative_contract_details("-1", "BOND", "DEC26", bond_issuer_id="e1359061")
    → Get detailed specifications for a specific bond
 ```
 
 ## Quick Reference
-
-### Common Field IDs for Market Data
-- `31`: Last Price
-- `66`: Bid Size
-- `68`: Ask Size
-- `69`: Bid Price
-- `70`: Ask Price
-- `84`: Mark Price
-- `85`: Bid/Ask Change
-- `86`: Mark Change
 
 ### Common Security Types
 - `STK`: Stock
@@ -327,6 +257,3 @@ Definitions of fields for marketdata snapshot.
 ## Notes
 - Always call `preflight_receive_brokerage_accounts()` before account-specific operations
 - `regulatory_snapshot()` costs $0.01 USD per call
-- Use `search_unique_stocks_depth_first()` for unambiguous conid resolution
-- Batch operations (`marketdata_history_by_conids`, `marketdata_history_by_symbols`) support parallel processing
-- First market data requests may require retries until valid data (field 31) is received

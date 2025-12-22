@@ -11,13 +11,13 @@ Each call fetches fresh data (no caching for real-time MCP server).
 import json
 import time
 from typing import Any, Dict, Optional, List
-from ibind.support.py_utils import OneOrMany
+from ibind.support.py_utils import OneOrMany # type: ignore[import]
 
-from ibind import IbkrClient
-from ibind.client.ibkr_definitions import snapshot_by_id
-from ibind.client.ibkr_utils import StockQueries
+from ibind import IbkrClient # type: ignore[import]
+from ibind.client.ibkr_definitions import snapshot_by_id # type: ignore[import]
+from ibind.client.ibkr_utils import StockQueries # type: ignore[import]
 
-from ibind import Result
+from ibind import Result # type: ignore[import]
 
 # from settings import DEFAULT_FIELDS, PREDEFINED_WATCHLIST_SYMBOLS
 
@@ -67,7 +67,7 @@ def iterate_to_fetch_market_data(conids: List[str], fields: List[str], max_attem
     for attempt in range(max_attempts):
         # Convert conids to string for API call
         conid_str = conids[0] if conids else ""
-        data_result = fetch_raw_market_data(conid=conid_str, fields=fields)
+        data_result = fetch_raw_market_data(conids=conid_str, fields=fields)
         if data_result:
             return data_result
         
@@ -210,7 +210,8 @@ def extract_result_data(result: Result) -> Any:
     """Extract .data attribute from IbkrClient Result object"""
     # This helper is to make PyLance happy
     # if result.data is not None:
-    return result.data
+    return result.data # type: ignore[return-value] - This method returns dict directly, not Result
+
 
 def fetch_raw_market_data(conids: OneOrMany[str], fields: list[str]) -> Optional[Dict[str, Any]]:
     """Fetch raw market data snapshot from IBKR API.s

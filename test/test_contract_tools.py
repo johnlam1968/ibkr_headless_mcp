@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+import maybe.unexposed as unexposed
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
@@ -80,8 +82,8 @@ async def run_all_tests():
     tests = [
         # Search & Lookup Tools (7)
         ("search_contract (AAPL)", mcp_server.search_underlier, test_symbol),
-        ("security_definition (AAPL)", mcp_server.security_definition, test_conid),
-        ("all_exchange_contracts (NASDAQ)", mcp_server.all_exchange_contracts, test_exchange),
+        ("security_definition (AAPL)", mcp_server.instrument_definition, test_conid),
+        ("all_exchange_contracts (NASDAQ)", unexposed.all_exchange_contracts, test_exchange),
         ("contract_information (AAPL)", mcp_server.contract_information, test_conid),
         ("currency_pairs (USD)", mcp_server.currency_pairs, test_currency),
         ("security_futures (ES)", mcp_server.search_futures, "ES"),
@@ -89,31 +91,31 @@ async def run_all_tests():
         
         # Contract Details Tools (3)
         ("get_option_strikes (AAPL OPT)", mcp_server.get_option_strikes, test_conid, "OPT", "JAN25"),
-        ("get_trading_rules (AAPL)", mcp_server.get_trading_rules, test_conid),
-        ("trading_schedule (STK AAPL)", mcp_server.trading_schedule, "STK", test_symbol),
+        ("get_trading_rules (AAPL)", unexposed.get_trading_rules, test_conid),
+        ("trading_schedule (STK AAPL)", unexposed.trading_schedule, "STK", test_symbol),
         
         # Trading Rules & Info Tools (3)
         ("currency_exchange_rate (USD/EUR)", mcp_server.currency_exchange_rate, "USD", "EUR"),
         ("contract_info_and_rules (AAPL)", mcp_server.contract_info_and_rules, test_conid),
-        ("algo_params (AAPL)", mcp_server.algo_params, test_conid),
+        ("algo_params (AAPL)", unexposed.algo_params, test_conid),
         
         # Bond & Algorithm Tools (2)
         ("get_bond_filters (stub)", mcp_server.get_bond_filters, "e1359061"),
         
         # Live Market Data Tools (2)
         ("live_marketdata_snapshot (AAPL)", mcp_server.live_marketdata_snapshot, test_conid),
-        ("live_marketdata_snapshot_by_symbol (AAPL)", mcp_server.live_marketdata_snapshot_by_queries, test_symbol),
+        ("live_marketdata_snapshot_by_symbol (AAPL)", unexposed.live_marketdata_snapshot_by_queries, test_symbol),
         
         # Historical Market Data Tools (5)
         ("marketdata_history_by_conid (AAPL 1d)", mcp_server.marketdata_history_by_conid, test_conid, "1d", "1d"),
-        ("marketdata_history_by_symbol (AAPL 1d)", mcp_server.marketdata_history_by_symbol, test_symbol, "1d", "1d"),
-        ("marketdata_history_by_conids (batch)", mcp_server.marketdata_history_by_conids, test_conids, "1d", "1d"),
-        ("marketdata_history_by_symbols (batch)", mcp_server.marketdata_history_by_symbols, test_symbols, "1d", "1d"),
+        ("marketdata_history_by_symbol (AAPL 1d)", unexposed.marketdata_history_by_symbol, test_symbol, "1d", "1d"),
+        ("marketdata_history_by_conids (batch)", unexposed.marketdata_history_by_conids, test_conids, "1d", "1d"),
+        ("marketdata_history_by_symbols (batch)", unexposed.marketdata_history_by_symbols, test_symbols, "1d", "1d"),
         
         # Regulatory & Subscriptions Tools (3)
-        ("regulatory_snapshot (AAPL)", mcp_server.regulatory_snapshot, test_conid),
-        ("marketdata_unsubscribe (AAPL)", mcp_server.marketdata_unsubscribe, test_conid),
-        ("marketdata_unsubscribe_all", mcp_server.marketdata_unsubscribe_all),
+        ("regulatory_snapshot (AAPL)", unexposed.regulatory_snapshot, test_conid),
+        ("marketdata_unsubscribe (AAPL)", unexposed.marketdata_unsubscribe, test_conid),
+        ("marketdata_unsubscribe_all", unexposed.marketdata_unsubscribe_all),
         
         # Utility (1)
         ("list_tools", mcp_server.list_tools),
