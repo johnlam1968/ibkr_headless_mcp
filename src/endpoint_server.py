@@ -97,6 +97,9 @@ async def call_endpoint(path: str, params: Optional[Dict[str, Any]]) -> str:
         Must call twice to get actual data, first call returns empty data. 
         So, Second call to get actual data:
         call_endpoint(path='iserver/marketdata/snapshot', params={"conids":"265598", "fields":"31,84,86"})
+        100 conids can be requested at once
+        10 requests per second
+        upstream docs: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#md-snapshot
 
     """
     if params:

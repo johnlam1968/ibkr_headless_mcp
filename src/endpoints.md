@@ -1224,4 +1224,5 @@ Note: These units are case sensitive.
 
 NOTE: Keep in mind that a step size is defined as the ratio between the historical data request’s duration period and its granularity (i.e. bar size). Historical Data requests need to be assembled in such a way that only a few thousand bars are returned at a time.
 
- 
+## Pacing Limits
+https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#pacing-limitations
