@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "ibkr-contract-search": {
-      "command": "/home/john/CodingProjects/llm/.venv/bin/python",
+    "ibkr-endpoints": {
+      "command": "/home/john/CodingProjects/llm_public/.venv/bin/python",
       "args": [
         "/home/john/CodingProjects/llm_public/src/endpoint_server.py"
       ],

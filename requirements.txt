@@ -1,3 +1,7 @@
 mcp
 ibind
 python-dotenv
+uvicorn
+starlette
+httpx
+pycryptodome

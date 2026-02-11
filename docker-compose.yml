@@ -1,0 +1,33 @@
+services:
+  mcp-server:
+    build: .
+    container_name: mcp-server
+    hostname: mcp-server
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - IBIND_USE_OAUTH=True
+      # Allow access from any Docker container on the host
+      - ALLOWED_HOSTS=localhost,127.0.0.1,172.22.0.0/16,172.18.0.0/16,mcp-server,mcp-server:8000
+    volumes:
+      # Mount secrets at the path expected by .env
+      - /run/media/john/377383bc-7d5c-4ae9-853c-3477d0806098/.secrets/oauth_files:/run/media/john/377383bc-7d5c-4ae9-853c-3477d0806098/.secrets/oauth_files:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/mcp || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - default
+      - openclaw
+
+networks:
+  default:
+    name: llm_public_default
+  openclaw:
+    name: openclaw_default
+    external: true

@@ -1,4 +1,175 @@
 source: https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/
+## Receive Brokerage Accounts 
+Returns a list of accounts the user has trading access to, their respective aliases and the currently selected account. Note this endpoint must be called before modifying an order or querying open orders.
+
+GET /iserver/accounts
+
+Request Object:
+No parameters necessary.
+
+Python
+cURL
+request_url = f"{baseUrl}/iserver/accounts" 
+requests.get(url=request_url)
+ 
+
+Response Object:
+accounts: Array of Strings.
+Returns an array of all accessible accountIds.
+
+acctProps: Json Object.
+Returns an json object for each accessible account’s properties.
+
+hasChildAccounts: bool.
+Returns whether or not child accounts exist for the account.
+
+supportsCashQty: bool
+Returns whether or not the account can use Cash Quantity for trading.
+
+supportsFractions: bool.
+Returns whether or not the account can submit fractional share orders.
+
+allowCustomerTime: bool.
+Returns whether or not the account must submit “manualOrderTime” with orders or not.
+If true, manualOrderTime must be included.
+If false, manualOrderTime cannot be included.
+
+aliases: JSON Object.
+Returns any available aliases for the account.
+
+allowFeatures: JSON object
+JSON of allowed features for the account.
+
+showGFIS: bool.
+Returns if the account can access market data.
+
+showEUCostReport: bool.
+Returns if the account can view the EU Cost Report
+
+allowFXConv: bool.
+Returns if the account can convert currencies.
+
+allowFinancialLens: bool.
+Returns if the account can access the financial lens.
+
+allowMTA: bool.
+Returns if the account can use mobile trading alerts.
+
+allowTypeAhead: bool.
+Returns if the account can use Type-Ahead support for Client Portal.
+
+allowEventTrading: bool.
+Returns if the account can use Event Trader.
+
+snapshotRefreshTimeout: int.
+Returns the snapshot refresh timeout window for new data.
+
+liteUser: bool.
+Returns if the account is an IBKR Lite user.
+
+showWebNews: bool.
+Returns if the account can use News feeds via the web.
+research: bool.
+
+debugPnl: bool.
+Returns if the account can use the debugPnl endpoint.
+
+showTaxOpt: bool.
+Returns if the account can use the Tax Optimizer tool
+
+showImpactDashboard: bool.
+Returns if the account can view the Impact Dashboard.
+
+allowDynAccount: bool.
+Returns if the account can use dynamic account changes.
+
+allowCrypto: bool.
+Returns if the account can trade crypto currencies.
+
+allowedAssetTypes: bool.
+Returns a list of asset types the account can trade.
+
+chartPeriods: Json Object.
+Returns available trading times for all available security types.
+
+groups: Array.
+Returns an array of affiliated groups.
+
+profiles: Array.
+Returns an array of affiliated profiles.
+
+selectedAccount: String.
+Returns currently selected account. See Switch Account for more details.
+
+serverInfo: JSON Object.
+Returns information about the IBKR session. Unrelated to Client Portal Gateway.
+
+sessionId: String.
+Returns current session ID.
+
+isFT: bool.
+Returns fractional trading access.
+
+isPaper: bool.
+Returns account type status.
+
+{
+  "accounts": [
+    "U1234567"
+  ],
+  "acctProps": {
+    "U1234567": {
+      "hasChildAccounts": false,
+      "supportsCashQty": true,
+      "noFXConv": false,
+      "isProp": false,
+      "supportsFractions": true,
+      "allowCustomerTime": false
+    }
+  },
+  "aliases": {
+    "U1234567": "U1234567"
+  },
+  "allowFeatures": {
+    "showGFIS": true,
+    "showEUCostReport": false,
+    "allowEventContract": true,
+    "allowFXConv": true,
+    "allowFinancialLens": false,
+    "allowMTA": true,
+    "allowTypeAhead": true,
+    "allowEventTrading": true,
+    "snapshotRefreshTimeout": 30,
+    "liteUser": false,
+    "showWebNews": true,
+    "research": true,
+    "debugPnl": true,
+    "showTaxOpt": true,
+    "showImpactDashboard": true,
+    "allowDynAccount": false,
+    "allowCrypto": false,
+    "allowedAssetTypes": "STK,CRYPTO"
+  },
+  "chartPeriods": {
+    "STK": [
+      "*"
+    ],
+    "CRYPTO": [
+      "*"
+    ]
+  },
+  "groups": [],
+  "profiles": [],
+  "selectedAccount": "U1234567",
+  "serverInfo": {
+    "serverName": "JifN17091",
+    "serverVersion": "Build 10.25.0p, Dec 5, 2023 5:48:12 PM"
+  },
+  "sessionId": "1234a5b.12345678",
+  "isFT": false,
+  "isPaper": false
+}
+
 ## Search the security definition by Contract ID
 Returns a list of security definitions for the given conids
 
@@ -834,6 +1005,188 @@ Closing time of the trading day.
 
 cancelDayOrders: string.
 Cancel time for day orders.
+
+
+Trading schedule
+Provides contract trading schedules
+
+GET /forecast/contract/schedules
+ 
+
+Request Object
+Query Params
+conid: Integer
+Contract identifier
+
+Python
+cURL
+import requests
+url = "{{base-url}}/forecast/contract/schedules?conid=767285167"
+payload = {}
+headers = {}
+response = requests.request("GET", url, headers=headers, data=payload)
+print(response.text)
+ 
+
+Response Object
+timezone: String
+Exchange timezone
+
+trading schedule: List
+List of strikes
+
+day_of_week: String
+
+trading_times: List
+List of trading time intervalse
+
+open: String
+Start of trading interval
+
+close: String
+End of trading interval
+
+{
+    "timezone": "US/Central",
+    "trading_schedules": [
+        {
+            "day_of_week": "Saturday",
+            "trading_times": [
+                {
+                    "open": "12:00 AM",
+                    "close": "4:15 PM"
+                },
+                {
+                    "open": "4:16 PM",
+                    "close": "11:59 PM"
+                }
+            ]
+        },
+        {
+            "day_of_week": "Sunday",
+            "trading_times": [
+                {
+                    "open": "12:00 AM",
+                    "close": "4:15 PM"
+                },
+                {
+                    "open": "4:16 PM",
+                    "close": "11:59 PM"
+                }
+            ]
+        },
+}
+## Trading Schedule (NEW)
+Returns the trading schedule for the 6 total days surrounding the current trading day. Non-Trading days, such as holidays, will not be returned.
+
+GET /contract/trading-schedule
+
+ 
+
+Request Object
+Query Params
+conid: String. Required
+Provide the contract identifier to retrieve the trading schedule for.
+
+exchange: String.
+Accepts the exchange to retrieve data from. Primary exchange is assumed by default.
+
+Python
+cURL
+request_url = f"{baseUrl}/contract/trading-schedule?conid=265598&exchange=ISLAND"
+requests.get(url=requests_url)
+ 
+
+Response Object
+exchange_time_zone: String.
+Returns the time zone the exchange trades in.
+
+schedules: Object.
+A schedule object containing the trading hours.
+{
+{date}: Array.
+Array of hours objects detailing extended and standard trading.
+[
+extended_hours: Array.
+Reference the total extended trading hours for the session.
+{
+cancel_daily_orders: Boolean.
+Determines if DAY orders are canceled after ‘closing’ time.
+
+closing: Integer.
+Epoch timestamp of the exchange’s close.
+
+opening: Integer.
+Epoch timestamp of the exchange’s open.
+}
+
+liquid_hours: Array.
+Reference the available trading hours for the regular session
+{
+closing: Integer.
+Epoch timestamp of the exchange’s close.
+
+opening: Integer.
+Epoch timestamp of the exchange’s open.
+}]}
+
+{
+  'exchange_time_zone': 'US/Central', 
+  'schedules': {
+    '20251218': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766095200,
+        'opening': 1766012400}],
+    'liquid_hours': [{
+        'closing': 1766095200,
+        'opening': 1766068200
+    }]},
+    '20251219': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766181600,
+        'opening': 1766098800}],
+    'liquid_hours': [{
+        'closing': 1766181600,
+        'opening': 1766154600
+    }]},
+    '20251222': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766440800,
+        'opening': 1766358000}],
+    'liquid_hours': [{
+        'closing': 1766440800,
+        'opening': 1766413800
+    }]},
+    '20251223': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766527200,
+        'opening': 1766444400
+    }],
+    'liquid_hours': [{
+        'closing': 1766527200,
+        'opening': 1766500200
+    }]},
+    '20251224': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766600100,
+        'opening': 1766530800}],
+    'liquid_hours': [{
+        'closing': 1766600100,
+        'opening': 1766586600
+    }]},
+    '20251226': {
+      'extended_hours': [{
+        'cancel_daily_orders': True,
+        'closing': 1766786400,
+        'opening': 1766703600
+    }]}  
+  }
+}
 
 ## Live Market Data Snapshot
 Get Market Data for the given conid(s).
