@@ -179,6 +179,22 @@ def _call_endpoint(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
         result = client.get(path=path, params=params)  # type: ignore
         return {"data": result.data}
     except Exception as e:
+        error_str = str(e)
+        # Check if it's an authentication error (401 Unauthorized)
+        if "401" in error_str or "Unauthorized" in error_str or "not authenticated" in error_str:
+            logger.warning("IBKR session expired, attempting re-authentication...")
+            try:
+                # This will regenerate the LST and restart the Tickler
+                # handle_auth_status() returns True if successful, False otherwise
+                if client.handle_auth_status(raise_exceptions=True):
+                    # Retry the original request after successful re-authentication
+                    result = client.get(path=path, params=params)
+                    return {"data": result.data}
+                else:
+                    return {"error": "Session expired and re-authentication returned False"}
+            except Exception as reauth_error:
+                logger.error("Re-authentication failed: %s", reauth_error)
+                return {"error": f"Session expired and re-authentication failed: {type(reauth_error).__name__}: {str(reauth_error)}"}
         return {"error": f"API request failed: {type(e).__name__}: {str(e)}"}
 
 
