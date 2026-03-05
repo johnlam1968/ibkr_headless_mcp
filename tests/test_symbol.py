@@ -7,6 +7,30 @@ import json
 import sys
 
 
+def check_auth_error(content_text):
+    """Check if the response contains an authentication error.
+    
+    Returns True if there's an auth error (should exit), False if OK.
+    """
+    if not content_text:
+        return False
+    
+    # Check for common auth error patterns
+    error_patterns = [
+        "IBKR client not initialized",
+        "invalid consumer",
+        "Session expired",
+        "Unauthorized",
+        "not authenticated",
+    ]
+    
+    for pattern in error_patterns:
+        if pattern.lower() in content_text.lower():
+            return True
+    
+    return False
+
+
 async def read_sse(response):
     """Parse SSE response into list of events."""
     results = []
@@ -97,12 +121,13 @@ async def test_symbol_workflow(symbol):
                 elif 'error' in e:
                     print(f"   ✗ Error: {e['error']}")
     
-    # Authenticate first (required before any market data calls)
+    # Test get_accounts endpoint
+    auth_failed = False
     async with httpx.AsyncClient(timeout=60.0) as client:
-        print("\n   Authenticating with IBKR (iserver/accounts)...")
+        print("\n   Testing get_accounts endpoint...")
         auth_req = {
             "jsonrpc": "2.0", "method": "tools/call",
-            "params": {"name": "call_endpoint", "arguments": {"path": "iserver/accounts", "params": {}}},
+            "params": {"name": "get_accounts", "arguments": {}},
             "id": 3
         }
         async with client.stream("POST", base_url, content=json.dumps(auth_req),
@@ -110,9 +135,80 @@ async def test_symbol_workflow(symbol):
             events = await read_sse(resp)
             for e in events:
                 if 'result' in e:
-                    print(f"   ✓ Authenticated")
+                    content = e['result'].get('content', [])
+                    for item in content:
+                        if item.get('type') == 'text':
+                            text = item.get('text', '')
+                            print(f"   Response: {text[:200]}...")
+                            if check_auth_error(text):
+                                auth_failed = True
                 elif 'error' in e:
                     print(f"   ✗ Auth error: {e['error']}")
+                    auth_failed = True
+    
+    if auth_failed:
+        print("\n" + "=" * 60)
+        print("ERROR: IBKR authentication failed!")
+        print("Please check your OAuth credentials in the .env file")
+        print("Exiting early...")
+        print("=" * 60)
+        sys.exit(1)
+    
+    # Test search_conids endpoint
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        print(f"\n   Testing search_conids endpoint for '{symbol}'...")
+        search_req = {
+            "jsonrpc": "2.0", "method": "tools/call",
+            "params": {"name": "search_conids", "arguments": {"symbols": symbol}},
+            "id": 3
+        }
+        async with client.stream("POST", base_url, content=json.dumps(search_req),
+                               headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "mcp-session-id": session_id}) as resp:
+            events = await read_sse(resp)
+            for e in events:
+                if 'result' in e:
+                    content = e['result'].get('content', [])
+                    for item in content:
+                        if item.get('type') == 'text':
+                            text = item.get('text', '')
+                            try:
+                                data = json.loads(text)
+                                if data and data.get('results'):
+                                    conid = data['results'][0].get('conid')
+                                    sym = data['results'][0].get('symbol')
+                                    print(f"   ✓ search_conids found: {sym} - conid: {conid}")
+                            except Exception as err:
+                                print(f"   Error parsing: {err}")
+                elif 'error' in e:
+                    print(f"   ✗ Search error: {e['error']}")
+    
+    # Test get_snapshot_by_symbols endpoint
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        print(f"\n   Testing get_snapshot_by_symbols endpoint for '{symbol}'...")
+        snapshot_req = {
+            "jsonrpc": "2.0", "method": "tools/call",
+            "params": {"name": "get_snapshot_by_symbols", "arguments": {"symbols": symbol, "delay": 2}},
+            "id": 3
+        }
+        async with client.stream("POST", base_url, content=json.dumps(snapshot_req),
+                               headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "mcp-session-id": session_id}) as resp:
+            events = await read_sse(resp)
+            for e in events:
+                if 'result' in e:
+                    content = e['result'].get('content', [])
+                    for item in content:
+                        if item.get('type') == 'text':
+                            text = item.get('text', '')
+                            try:
+                                data = json.loads(text)
+                                if data and data.get('data'):
+                                    market_data = data['data']
+                                    print(f"   ✓ get_snapshot_by_symbols response received")
+                                    print(f"   Fields: {list(market_data[0].keys())[:10]}...")
+                            except Exception as err:
+                                print(f"   Error parsing: {err}")
+                elif 'error' in e:
+                    print(f"   ✗ Snapshot error: {e['error']}")
     
     # Find contract
     conid = None
@@ -152,86 +248,9 @@ async def test_symbol_workflow(symbol):
         print("=" * 60)
         return
     
-    # Market snapshot - Call TWICE as per IBKR API requirements
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        print(f"\n3. Getting market snapshot for {symbol} (conid={conid})")
-        print("   Note: IBKR requires TWO calls to get market data")
-        
-        # First call - initialize subscription
-        print("   Call 1: Initialize subscription")
-        call_req = {
-            "jsonrpc": "2.0", "method": "tools/call",
-            "params": {"name": "call_endpoint", "arguments": {"path": "iserver/marketdata/snapshot", "params": {"conids": conid, "fields": "31,84,86,70,71,55,82,83"}}},
-            "id": 3
-        }
-        async with client.stream("POST", base_url, content=json.dumps(call_req),
-                               headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "mcp-session-id": session_id}) as resp:
-            events = await read_sse(resp)
-            for e in events:
-                if 'result' in e:
-                    content = e['result'].get('content', [])
-                    for item in content:
-                        if item.get('type') == 'text':
-                            result = item.get('text', '')[:200]
-                            print(f"   ✓ Call 1 response: {result}...")
-                elif 'error' in e:
-                    print(f"   ✗ Call 1 error: {e['error']}")
-        
-        # Second call - get actual data
-        print("   Call 2: Retrieve market data")
-        call_req["id"] = 4
-        async with client.stream("POST", base_url, content=json.dumps(call_req),
-                               headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "mcp-session-id": session_id}) as resp:
-            events = await read_sse(resp)
-            for e in events:
-                if 'result' in e:
-                    content = e['result'].get('content', [])
-                    for item in content:
-                        if item.get('type') == 'text':
-                            result = item.get('text', '')
-                            # Use the proper parser that handles escaped characters
-                            market_data = parse_sse_response(e)
-                            
-                            if market_data:
-                                print(f"   ✓ Call 2 response received")
-                                print(f"   Fields available: {list(market_data.keys())}")
-                                
-                                # Check for price fields
-                                price_fields = {
-                                    "31": "Last Price",
-                                    "84": "Bid",
-                                    "86": "Ask",
-                                    "70": "High",
-                                    "71": "Low",
-                                    "82": "Change",
-                                    "83": "Change %",
-                                    "55": "Symbol"
-                                }
-                                
-                                print(f"\n   Price Data Analysis:")
-                                has_price_data = False
-                                for field_id, field_name in price_fields.items():
-                                    value = market_data.get(field_id, "MISSING")
-                                    if value is not None and value != "" and value != "MISSING":
-                                        print(f"      {field_name} ({field_id}): {value}")
-                                        # Convert field_id to int for comparison since dictionary keys are strings
-                                        if int(field_id) in [31, 84, 86, 70, 71, 82, 83]:
-                                            has_price_data = True
-                                
-                                if not has_price_data:
-                                    print(f"      ⚠ WARNING: No price data (fields 31,84,86,70,71,82,83) returned")
-                                    print(f"      This may be due to:")
-                                    print(f"      - Market is closed (outside trading hours)")
-                                    print(f"      - IBKR account not authenticated for market data")
-                                    print(f"      - Market data subscription not active")
-                                else:
-                                    print(f"      ✓ Price data available")
-                            else:
-                                print(f"   ✗ Failed to parse market data from response")
-    
     # Historical data
     async with httpx.AsyncClient(timeout=60.0) as client:
-        print(f"\n4. Getting historical data for {symbol}...")
+        print(f"\n3. Getting historical data for {symbol}...")
         call_req = {
             "jsonrpc": "2.0", "method": "tools/call",
             "params": {"name": "call_endpoint", "arguments": {"path": "iserver/marketdata/history", "params": {"conid": conid, "period": "1d", "bar": "5min"}}},

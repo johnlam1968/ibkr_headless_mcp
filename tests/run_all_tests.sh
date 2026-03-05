@@ -34,7 +34,7 @@ print_info() {
     echo -e "${YELLOW}→ $1${NC}"
 }
 
-# Test 1: Localhost Connection Tests
+# Test 1: Localhost Connection Tests (using unified test file)
 test_localhost() {
     print_header "TEST 1: Localhost Connection (Outside Container)"
     
@@ -44,33 +44,28 @@ test_localhost() {
     fi
     print_success "Server is running on localhost:8000"
     
-    print_info "Running MCP client tests..."
-    if python3 tests/test_mcp_client.py; then
-        print_success "MCP client tests passed"
+    print_info "Running unified MCP client tests (connection mode)..."
+    if python3 tests/test_unified.py --mode connection; then
+        print_success "MCP connection tests passed"
     else
-        print_error "MCP client tests failed"
+        print_error "MCP connection tests failed"
         return 1
     fi
 }
 
-# Test 2: Symbol Test with Market Data
-test_symbol() {
-    print_header "TEST 2: Symbol Search (Outside Container)"
+# Test 2: Market Data Tests
+test_market_data() {
+    print_header "TEST 2: Market Data Tests (Outside Container)"
     
     SYMBOL="${1:-AAPL}"
     
     print_info "Testing with symbol: $SYMBOL"
     
-    # Use the local ibkr_market_snapshot.py script for market data tests
-    echo ""
-    echo "Using local ibkr_market_snapshot.py for market data test..."
-    echo "Note: This script requires AAPL's conid (265598) for market data."
-    
-    if python3 tests/ibkr_market_snapshot.py 265598 2>&1 | grep -q "Last:"; then
-        print_success "Market data test passed - AAPL price fields are populated"
+    if python3 tests/test_unified.py --mode market-data --symbol "$SYMBOL"; then
+        print_success "Market data tests passed"
         return 0
     else
-        print_error "Market data test failed - AAPL price fields may be empty"
+        print_error "Market data tests failed"
         return 1
     fi
 }
@@ -214,12 +209,12 @@ main() {
     
     if [[ $TEST_ALL == true ]]; then
         test_localhost
-        test_symbol
+        test_market_data
         test_container
     elif [[ $TEST_LOCALHOST == true ]]; then
         test_localhost
     elif [[ $TEST_SYMBOL == true ]]; then
-        test_symbol
+        test_market_data
     elif [[ $TEST_CONTAINER == true ]]; then
         if [[ $NO_NETWORK == true ]]; then
             NETWORK="openclaw_default"

@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import sys
 import httpx
 
 
@@ -29,6 +30,30 @@ async def read_sse_response(response):
                         pass
     
     return results
+
+
+def check_auth_error(content_text):
+    """Check if the response contains an authentication error.
+    
+    Returns True if there's an auth error (should exit), False if OK.
+    """
+    if not content_text:
+        return False
+    
+    # Check for common auth error patterns
+    error_patterns = [
+        "IBKR client not initialized",
+        "invalid consumer",
+        "Session expired",
+        "Unauthorized",
+        "not authenticated",
+    ]
+    
+    for pattern in error_patterns:
+        if pattern.lower() in content_text.lower():
+            return True
+    
+    return False
 
 
 async def test_mcp_server():
@@ -96,6 +121,7 @@ async def test_mcp_server():
     
     # Call call_endpoint tool
     print("\n3. Testing call_endpoint (iserver/accounts)...")
+    auth_failed = False
     async with httpx.AsyncClient(timeout=60.0) as client:
         call_request = {
             "jsonrpc": "2.0", "method": "tools/call",
@@ -118,9 +144,21 @@ async def test_mcp_server():
                     content = event['result'].get('content', [])
                     for item in content:
                         if item.get('type') == 'text':
-                            print(f"   Response: {item.get('text', '')[:300]}...")
+                            text = item.get('text', '')
+                            print(f"   Response: {text[:300]}...")
+                            if check_auth_error(text):
+                                auth_failed = True
                 elif 'error' in event:
                     print(f"   Error: {event['error']}")
+                    auth_failed = True
+    
+    if auth_failed:
+        print("\n" + "=" * 50)
+        print("ERROR: IBKR authentication failed!")
+        print("Please check your OAuth credentials in the .env file")
+        print("Exiting early...")
+        print("=" * 50)
+        sys.exit(1)
     
     # Call endpoint_instructions
     print("\n4. Testing endpoint_instructions...")

@@ -19,7 +19,7 @@ python3 tests/test_mcp_client.py
 ### `run_all_tests.sh`
 Comprehensive test suite that runs multiple test scenarios:
 - **Localhost connection tests** - Tests from outside Docker container
-- **Symbol search tests** - Tests market data retrieval using `ibkr_market_snapshot.py` (local copy)
+- **Symbol search tests** - Tests market data retrieval using `test_symbol.py`
 - **Docker container tests** - Tests from inside Docker container
 
 Usage:
@@ -31,29 +31,14 @@ Usage:
 ./tests/run_all_tests.sh --help      # Show all options
 ```
 
-### `ibkr_market_snapshot.py`
-Standalone market data test script (local copy from openclaw workspace):
-- Connects to MCP server at `localhost:8000`
-- Authenticates with IBKR
-- Gets market snapshot for a specific contract ID
-- Makes two calls as required by IBKR API (first to initialize, second to retrieve data)
-- Parses and displays market data fields
-
-Usage:
-```bash
-python3 tests/ibkr_market_snapshot.py 265598  # AAPL conid
-python3 tests/ibkr_market_snapshot.py 418144  # TSLA conid
-```
-
-Note: This script requires a contract ID (conid) as input, not a symbol.
-
 ### `test_symbol.py`
-Detailed symbol workflow test using httpx:
+Comprehensive symbol workflow test using httpx:
 - Initialize MCP session
 - List available tools (required by MCP protocol)
-- Authenticate with IBKR (iserver/accounts)
+- Test `get_accounts` endpoint
+- Test `search_conids` endpoint (resolves symbols to conids)
+- Test `get_snapshot_by_symbols` endpoint (handles session + symbol resolution + snapshot)
 - Find contract by symbol (iserver/secdef/search)
-- Get market snapshot with dual calls (iserver/marketdata/snapshot)
 - Get historical data (iserver/marketdata/history)
 
 Usage:
@@ -66,9 +51,7 @@ python3 tests/test_symbol.py TSLA
 - Proper MCP session initialization with `clientInfo` parameter
 - Using lowercase `"mcp-session-id"` header (case-sensitive)
 - Parsing SSE responses that contain JSON strings
-- Making dual calls to IBKR market data endpoints as required
-
-**Technical Note:** The script uses httpx for HTTP requests and handles the complex response parsing correctly. Response data from IBKR comes wrapped in a JSON string that needs to be decoded, then parsed for the market data array.
+- Using the convenience endpoints that handle IBKR's dual-call requirement internally
 
 ## Test Requirements
 
@@ -91,7 +74,8 @@ python3 tests/test_symbol.py TSLA
 
 ## Test Results
 
-The `run_all_tests.sh --symbol` test validates that AAPL price fields are properly populated:
+The `run_all_tests.sh --symbol` test validates that snapshot fields are properly populated using the `get_snapshot_by_symbols` endpoint which returns:
+- **Symbol** (field 55)
 - **Last Price** (field 31)
 - **Bid** (field 84)
 - **Ask** (field 86)
@@ -99,7 +83,6 @@ The `run_all_tests.sh --symbol` test validates that AAPL price fields are proper
 - **Low** (field 71)
 - **Change** (field 82)
 - **Change %** (field 83)
-- **Symbol** (field 55)
 
 If any of these fields are empty, the test will fail with a warning about possible causes:
 - Market is closed (outside trading hours)
@@ -128,7 +111,7 @@ If any of these fields are empty, the test will fail with a warning about possib
 # Basic MCP connectivity
 python3 tests/test_mcp_client.py
 
-# Symbol workflow (debugging version)
+# Symbol workflow (comprehensive)
 python3 tests/test_symbol.py AAPL
 ```
 
@@ -137,7 +120,7 @@ python3 tests/test_symbol.py AAPL
 ### "Server not running on localhost:8000"
 - Start the MCP server: `python3 src/endpoint_server.py`
 
-### "Market data test failed - AAPL price fields may be empty"
+### "Market data test failed - snapshot fields may be empty"
 - Check that IBKR OAuth credentials are configured in `.env`
 - Verify your IBKR account has market data subscription
 - Ensure market is open (not outside trading hours)
