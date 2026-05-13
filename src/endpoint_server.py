@@ -16,13 +16,37 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
+def _get_oauth_secret_dir() -> Optional[str]:
+    return os.environ.get("OAUTH_SECRET_DIR") or None
+
+
 def _load_secrets_from_files() -> None:
     """
     Load secrets from files referenced by *_FILE env vars and set them as env vars.
     Files should contain raw values (no quotes).
     This MUST be called BEFORE importing ibind, as ibind reads env vars at import time.
+
+    Supports two modes:
+      1. Individual *_FILE vars (explicit full path per secret)
+      2. OAUTH_SECRET_DIR single base path — auto-derives all *_FILE paths
     """
-    # Map of env var names to their file-based counterparts
+    oauth_dir = _get_oauth_secret_dir()
+
+    # Auto-derive *_FILE vars from OAUTH_SECRET_DIR if set
+    if oauth_dir:
+        _filename_map = {
+            "IBIND_OAUTH1A_CONSUMER_KEY_FILE": "consumer_key",
+            "IBIND_OAUTH1A_ACCESS_TOKEN_FILE": "access_token",
+            "IBIND_OAUTH1A_ACCESS_TOKEN_SECRET_FILE": "access_token_secret",
+            "IBIND_OAUTH1A_DH_PRIME_FILE": "dh_prime",
+            "IBIND_OAUTH1A_ENCRYPTION_KEY_FP": "private_encryption.pem",
+            "IBIND_OAUTH1A_SIGNATURE_KEY_FP": "private_signature.pem",
+        }
+        for file_var, filename in _filename_map.items():
+            if not os.environ.get(file_var):
+                os.environ[file_var] = os.path.join(oauth_dir, filename)
+                logger.info("Derived %s from OAUTH_SECRET_DIR: %s", file_var, os.environ[file_var])
+
     secret_file_mappings = {
         "IBIND_OAUTH1A_CONSUMER_KEY": "IBIND_OAUTH1A_CONSUMER_KEY_FILE",
         "IBIND_OAUTH1A_ACCESS_TOKEN": "IBIND_OAUTH1A_ACCESS_TOKEN_FILE",
@@ -31,13 +55,12 @@ def _load_secrets_from_files() -> None:
     }
 
     for env_var, file_var in secret_file_mappings.items():
-        # Only load if not already set
         if not os.environ.get(env_var) and os.environ.get(file_var):
             file_path = os.environ[file_var]
             if os.path.exists(file_path):
                 try:
                     with open(file_path, "r") as f:
-                        content = f.read().strip()  # Just strip whitespace/newlines
+                        content = f.read().strip()
                         os.environ[env_var] = content
                         logger.info("Loaded %s from %s", env_var, file_path)
                 except Exception as e:
@@ -333,11 +356,19 @@ def _get_snapshot(conids: str, delay: int = 50, requested_symbols: Optional[str]
 
     # Add requested_symbols to the response if provided
     snapshot_data = snapshot_result_2.get("data", {})
-    if requested_symbols and snapshot_data.get("data"):
-        symbol_list = [s.strip().upper() for s in requested_symbols.split(",")]
-        for i, item in enumerate(snapshot_data["data"]):
-            if i < len(symbol_list):
-                item["requested_symbol"] = symbol_list[i]
+    # iserver/marketdata/snapshot returns a list directly, not wrapped in {"data": [...]}
+    if requested_symbols:
+        if isinstance(snapshot_data, list):
+            items = snapshot_data
+        elif isinstance(snapshot_data, dict):
+            items = snapshot_data.get("data", [])
+        else:
+            items = []
+        if items:
+            symbol_list = [s.strip().upper() for s in requested_symbols.split(",")]
+            for i, item in enumerate(items):
+                if i < len(symbol_list):
+                    item["requested_symbol"] = symbol_list[i]
 
     return snapshot_data
 
@@ -376,17 +407,25 @@ async def search_conids(symbols: str) -> str:
         conid = None
         matched_symbol = None
         
-        if data.get("data"):
+        # iserver/secdef/search returns a list directly, not wrapped in {"data": [...]}
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = data.get("data", [])
+        else:
+            items = []
+        
+        if items:
             # Try to find exact symbol match first
-            for item in data["data"]:
+            for item in items:
                 if item.get("symbol", "").upper() == symbol:
                     conid = item.get("conid")
                     matched_symbol = item.get("symbol")
                     break
             # If exact match not found, use first result
-            if not conid and data["data"]:
-                conid = data["data"][0].get("conid")
-                matched_symbol = data["data"][0].get("symbol")
+            if not conid:
+                conid = items[0].get("conid")
+                matched_symbol = items[0].get("symbol")
 
         if not conid:
             results.append({"requested_symbol": symbol, "error": f"Could not find conid for symbol {symbol}"})
@@ -479,17 +518,25 @@ async def get_snapshot_by_symbols(symbols: str, delay: int = 50) -> str:
         conid = None
         matched_symbol = None
         
-        if data.get("data"):
+        # iserver/secdef/search returns a list directly, not wrapped in {"data": [...]}
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = data.get("data", [])
+        else:
+            items = []
+        
+        if items:
             # Try to find exact symbol match first
-            for item in data["data"]:
+            for item in items:
                 if item.get("symbol", "").upper() == symbol:
                     conid = item.get("conid")
                     matched_symbol = item.get("symbol")
                     break
             # If exact match not found, use first result
-            if not conid and data["data"]:
-                conid = data["data"][0].get("conid")
-                matched_symbol = data["data"][0].get("symbol")
+            if not conid:
+                conid = items[0].get("conid")
+                matched_symbol = items[0].get("symbol")
 
         if not conid:
             return json.dumps({"error": f"Could not find conid for symbol {symbol}"})

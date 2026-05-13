@@ -11,9 +11,6 @@ services:
       - IBIND_USE_OAUTH=True
       # Allow access from any Docker container on the host
       - ALLOWED_HOSTS=localhost,127.0.0.1,172.22.0.0/16,172.18.0.0/16,mcp-server,mcp-server:8000
-    volumes:
-      # Mount secrets at the path expected by .env
-      - /run/media/john/377383bc-7d5c-4ae9-853c-3477d0806098/.secrets/oauth_files:/run/media/john/377383bc-7d5c-4ae9-853c-3477d0806098/.secrets/oauth_files:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/mcp || exit 0"]

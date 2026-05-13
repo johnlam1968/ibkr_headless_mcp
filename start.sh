@@ -13,16 +13,14 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+# Determine the script's directory (resolve symlinks)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+cd "$SCRIPT_DIR"
+
 # Check if .env file exists
-if [ ! -f .env ]; then
-    echo "WARNING: .env file not found. Creating from example..."
-    if [ -f .env.example ]; then
-        cp .env.example .env
-        echo "Created .env from .env.example"
-    else
-        echo "ERROR: No .env or .env.example found. Please create .env file first."
-        exit 1
-    fi
+if [ ! -f ".env" ]; then
+    echo "ERROR: .env file not found. Please create it from .env.example or manually."
+    exit 1
 fi
 
 # Stop and remove existing container if it exists
@@ -35,7 +33,7 @@ fi
 # Build Docker image
 echo ""
 echo "Building Docker image..."
-docker build -t mcp-server .
+docker build -t mcp-server "$SCRIPT_DIR"
 
 # Create llm_public_default network if it doesn't exist
 if ! docker network inspect llm_public_default > /dev/null 2>&1; then
@@ -44,21 +42,17 @@ if ! docker network inspect llm_public_default > /dev/null 2>&1; then
     echo "✓ Network created"
 fi
 
-# Parse .env file to get secrets directory
-# Extract directory path from any *_FILE variable in .env
-SECRETS_DIR_FROM_ENV=$(grep "_FILE=" .env 2>/dev/null | head -1 | cut -d'=' -f2 | xargs dirname 2>/dev/null || echo "")
+# Parse .env for secrets directory (supports OAUTH_SECRET_DIR or SECRETS_DIR)
+SECRETS_DIR=$(grep "^OAUTH_SECRET_DIR=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "")
+if [ -z "$SECRETS_DIR" ]; then
+    SECRETS_DIR=$(grep "^SECRETS_DIR=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "")
+fi
 
-if [ -n "$SECRETS_DIR" ]; then
+if [ -n "$SECRETS_DIR" ] && [ -d "$SECRETS_DIR" ]; then
     SECRETS_MOUNT="$SECRETS_DIR"
-    echo "INFO: Using secrets directory from SECRETS_DIR: $SECRETS_MOUNT"
-elif [ -n "$SECRETS_DIR_FROM_ENV" ]; then
-    SECRETS_MOUNT="$SECRETS_DIR_FROM_ENV"
-    echo "INFO: Using secrets directory from .env: $SECRETS_MOUNT"
-elif [ -d "$PWD/secrets" ]; then
-    SECRETS_MOUNT="$PWD/secrets"
-    echo "INFO: Using local secrets directory: $SECRETS_MOUNT"
+    echo "INFO: Using secrets directory: $SECRETS_MOUNT"
 else
-    echo "ERROR: Could not determine secrets directory. Set SECRETS_DIR environment variable or ensure .env has *_FILE paths configured."
+    echo "ERROR: Secrets directory not found. Set OAUTH_SECRET_DIR in .env or ensure secrets are mounted."
     exit 1
 fi
 
